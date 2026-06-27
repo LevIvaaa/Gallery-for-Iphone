@@ -2536,3 +2536,30 @@ body {
 
 /* опасный пункт в поповере */
 .popover-row.danger { color: var(--danger); }
+
+/* ===== Убрать тень под фото в просмотре (#3) ===== */
+.viewer-img { box-shadow: none !important; }
+
+/* ===== Блок «фильтр + ⋯» в режиме выбора (#4) ===== */
+.head-pill {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 4px;
+  border-radius: 20px;
+}
+.pill-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.pill-btn.active {
+  background: var(--accent);
+}

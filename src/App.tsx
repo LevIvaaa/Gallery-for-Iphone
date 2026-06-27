@@ -15,7 +15,7 @@ import { ContextMenu } from "./components/ContextMenu";
 import { SelectionBar } from "./components/SelectionBar";
 import { ConfirmSheet } from "./components/ConfirmSheet";
 import { ActionMenu } from "./components/ActionMenu";
-import { DateEditSheet, GeoEditSheet, AlbumPickerSheet } from "./components/EditSheets";
+import { AlbumPickerSheet } from "./components/EditSheets";
 import { usePhotoLibrary } from "./hooks/usePhotoLibrary";
 import { deleteManyFromDevice } from "./services/nativeDelete";
 import { sharePhoto } from "./lib/share";
@@ -101,8 +101,6 @@ export default function App() {
     ids: string[];
     hard?: boolean;
   } | null>(null);
-  const [editDatePhoto, setEditDatePhoto] = useState<Photo | null>(null);
-  const [editGeoPhoto, setEditGeoPhoto] = useState<Photo | null>(null);
   const [albumPickerFor, setAlbumPickerFor] = useState<string[] | null>(null);
   const [pendingConfirm, setPendingConfirm] = useState<{
     kind: "hide" | "unhide" | "restore";
@@ -396,12 +394,6 @@ export default function App() {
       case "album":
         setAlbumPickerFor([p.id]);
         break;
-      case "date":
-        setEditDatePhoto(p);
-        break;
-      case "geo":
-        setEditGeoPhoto(p);
-        break;
       case "select":
         enterSelection(p);
         break;
@@ -458,6 +450,8 @@ export default function App() {
                       selectedCount={selected.size}
                       onDone={exitSelection}
                       onSelectMenu={() => setSelectMenuOpen(true)}
+                      onFilter={() => setFilterOpen(true)}
+                      filterActive={filterKey !== "all"}
                     />
                     <PhotoGrid
                       photos={libraryPhotos}
@@ -632,20 +626,6 @@ export default function App() {
           />
         )}
 
-        {editDatePhoto && (
-          <DateEditSheet
-            photo={editDatePhoto}
-            onSave={(d) => updatePhoto(editDatePhoto.id, { date: d })}
-            onClose={() => setEditDatePhoto(null)}
-          />
-        )}
-        {editGeoPhoto && (
-          <GeoEditSheet
-            photo={editGeoPhoto}
-            onSave={(c) => setCity(editGeoPhoto.id, c)}
-            onClose={() => setEditGeoPhoto(null)}
-          />
-        )}
         {albumPickerFor && (
           <AlbumPickerSheet
             albums={albums}
@@ -688,8 +668,6 @@ export default function App() {
             onSelect={() => photoAction("select", contextPhoto)}
             onHide={() => photoAction("hide", contextPhoto)}
             onAddAlbum={() => photoAction("album", contextPhoto)}
-            onEditDate={() => photoAction("date", contextPhoto)}
-            onEditGeo={() => photoAction("geo", contextPhoto)}
             onDelete={() => photoAction("delete", contextPhoto)}
             onClose={() => setContextPhoto(null)}
           />
@@ -801,6 +779,8 @@ function Header({
   selectedCount = 0,
   onDone,
   onSelectMenu,
+  onFilter,
+  filterActive,
 }: {
   title: string;
   subtitle?: string;
@@ -811,6 +791,8 @@ function Header({
   selectedCount?: number;
   onDone?: () => void;
   onSelectMenu?: () => void;
+  onFilter?: () => void;
+  filterActive?: boolean;
 }) {
   if (selecting) {
     return (
@@ -821,11 +803,23 @@ function Header({
           </h1>
         </div>
         <div className="head-acts">
-          {action}
-          {onSelectMenu && (
-            <button className="head-circle" onClick={onSelectMenu} aria-label="Ещё">
-              <DotsIcon size={20} />
-            </button>
+          {(onFilter || onSelectMenu) && (
+            <div className="head-pill glass">
+              {onFilter && (
+                <button
+                  className={`pill-btn ${filterActive ? "active" : ""}`}
+                  onClick={onFilter}
+                  aria-label="Фильтр"
+                >
+                  <FilterIcon size={19} />
+                </button>
+              )}
+              {onSelectMenu && (
+                <button className="pill-btn" onClick={onSelectMenu} aria-label="Ещё">
+                  <DotsIcon size={19} />
+                </button>
+              )}
+            </div>
           )}
           <button className="done-circle" onClick={onDone} aria-label="Готово">
             <CheckIcon size={20} />

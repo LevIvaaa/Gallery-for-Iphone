@@ -20,8 +20,6 @@ import {
   CopyIcon,
   LockIcon,
   AlbumsIcon,
-  ClockIcon,
-  MapPinIcon,
 } from "../icons";
 
 export function PhotoViewer({
@@ -207,8 +205,6 @@ export function PhotoViewer({
       icon: <LockIcon size={20} />,
     },
     { key: "album", label: "Добавить в альбом", icon: <AlbumsIcon size={20} /> },
-    { key: "date", label: "Изменить дату и время", icon: <ClockIcon size={20} /> },
-    { key: "geo", label: "Изменить геопозицию", icon: <MapPinIcon size={20} /> },
   ];
 
   const slides = [index - 1, index, index + 1];
@@ -288,12 +284,7 @@ export function PhotoViewer({
       {showMeta && (
         <MetadataSheet
           photo={photo}
-          hidden={photo.hidden}
           showMaps={showMaps}
-          onToggleHidden={() => {
-            setShowMeta(false);
-            onAction("hide", photo);
-          }}
           onClose={() => setShowMeta(false)}
         />
       )}

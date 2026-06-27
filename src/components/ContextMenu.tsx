@@ -7,8 +7,6 @@ import {
   HeartIcon,
   CopyIcon,
   AlbumsIcon,
-  ClockIcon,
-  MapPinIcon,
 } from "../icons";
 
 export function ContextMenu({
@@ -19,8 +17,6 @@ export function ContextMenu({
   onSelect,
   onHide,
   onAddAlbum,
-  onEditDate,
-  onEditGeo,
   onDelete,
   onClose,
 }: {
@@ -31,8 +27,6 @@ export function ContextMenu({
   onSelect: () => void;
   onHide: () => void;
   onAddAlbum: () => void;
-  onEditDate: () => void;
-  onEditGeo: () => void;
   onDelete: () => void;
   onClose: () => void;
 }) {
@@ -65,8 +59,6 @@ export function ContextMenu({
           {item("Выбрать", CheckIcon, onSelect)}
           {item(photo.hidden ? "Показать" : "Скрыть", LockIcon, onHide)}
           {item("Добавить в альбом", AlbumsIcon, onAddAlbum)}
-          {item("Изменить дату и время", ClockIcon, onEditDate)}
-          {item("Изменить геопозицию", MapPinIcon, onEditGeo)}
           {item("Удалить", TrashIcon, onDelete, true)}
         </div>
       </div>
