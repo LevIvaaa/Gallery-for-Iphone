@@ -16,14 +16,14 @@ import {
   UndoIcon,
   RedoIcon,
   MarkupIcon,
-  DotsIcon,
   RotateCwIcon,
   FlipHIcon,
   SparklesIcon,
+  EraserIcon,
   CheckIcon,
 } from "../icons";
 
-type Tab = "adjust" | "filters" | "crop";
+type Tab = "adjust" | "filters" | "crop" | "ai";
 type CropMode = "move" | "tl" | "tr" | "bl" | "br" | null;
 
 interface ES {
@@ -75,7 +75,6 @@ export function Editor({
   const [nat, setNat] = useState({ w: 0, h: 0 });
   const [markupMode, setMarkupMode] = useState(false);
   const [color, setColor] = useState(colors[0]);
-  const [more, setMore] = useState(false);
   const [busy, setBusy] = useState("");
 
   const markupRef = useRef<HTMLCanvasElement>(null);
@@ -260,7 +259,6 @@ export function Editor({
   };
 
   const runAI = async (kind: "enhance" | "removebg" | "denoise") => {
-    setMore(false);
     setBusy(kind === "removebg" ? "Загрузка ИИ-модели…" : "Обработка…");
     try {
       const baked = await renderEdited(workingSrc, {
@@ -327,24 +325,6 @@ export function Editor({
           <button className={`etool ${markupMode ? "on" : ""}`} onClick={() => setMarkupMode((v) => !v)}>
             <MarkupIcon size={22} />
           </button>
-          <div className="more-wrap">
-            <button className="etool" onClick={() => setMore((v) => !v)}>
-              <DotsIcon size={22} />
-            </button>
-            {more && (
-              <div className="more-menu glass">
-                <button onClick={() => runAI("enhance")}>
-                  <SparklesIcon size={18} /> Улучшить (ИИ)
-                </button>
-                <button onClick={() => runAI("removebg")}>
-                  <SparklesIcon size={18} /> Удалить фон (ИИ)
-                </button>
-                <button onClick={() => runAI("denoise")}>
-                  <SparklesIcon size={18} /> Убрать шум (ИИ)
-                </button>
-              </div>
-            )}
-          </div>
         </div>
         <button className="overlay-link strong" onClick={save}>
           Готово
@@ -511,6 +491,23 @@ export function Editor({
             </div>
           </div>
         )}
+
+        {tab === "ai" && (
+          <div className="ai-rail">
+            <button className="ai-card" onClick={() => runAI("enhance")}>
+              <span className="ai-ico"><SparklesIcon size={24} /></span>
+              Улучшить
+            </button>
+            <button className="ai-card" onClick={() => runAI("removebg")}>
+              <span className="ai-ico"><EraserIcon size={24} /></span>
+              Удалить фон
+            </button>
+            <button className="ai-card" onClick={() => runAI("denoise")}>
+              <span className="ai-ico"><SparklesIcon size={24} /></span>
+              Убрать шум
+            </button>
+          </div>
+        )}
       </div>
 
       <nav className="editor-tabs">
@@ -522,6 +519,9 @@ export function Editor({
         </button>
         <button className={`etab ${tab === "crop" ? "on" : ""}`} onClick={() => { setTab("crop"); setMarkupMode(false); }}>
           Обрезать
+        </button>
+        <button className={`etab ${tab === "ai" ? "on" : ""}`} onClick={() => { setTab("ai"); setMarkupMode(false); }}>
+          ИИ
         </button>
         <button className="etab save-dot" onClick={save} aria-label="Готово">
           <CheckIcon size={20} />

@@ -10,10 +10,12 @@ export function AvatarMenu({
   user,
   onClose,
   onOpenSettings,
+  onChangeAvatar,
 }: {
   user: UserProfile;
   onClose: () => void;
   onOpenSettings: () => void;
+  onChangeAvatar?: () => void;
 }) {
   const initials = user.name
     .split(" ")
@@ -43,6 +45,17 @@ export function AvatarMenu({
             {user.subtitle && <small>{user.subtitle}</small>}
           </div>
         </div>
+
+        {/* Сменить фото */}
+        {onChangeAvatar && (
+          <button className="account-row" onClick={onChangeAvatar} style={{ marginBottom: 8 }}>
+            <span className="row-icon">
+              <PersonIcon size={20} />
+            </span>
+            <span className="row-label">Сменить фото</span>
+            <ChevronRightIcon size={18} className="row-chevron" />
+          </button>
+        )}
 
         {/* Настройки */}
         <button className="account-row" onClick={onOpenSettings}>

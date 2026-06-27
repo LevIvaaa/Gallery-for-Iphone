@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, ChangeEvent } from "react";
 import { BottomBar, Tab } from "./components/BottomBar";
 import { PhotoGrid } from "./components/PhotoGrid";
 import { PhotoViewer } from "./components/PhotoViewer";
+import { Editor } from "./components/Editor";
 import { PermissionScreen } from "./components/PermissionScreen";
 import { Avatar, AvatarMenu, UserProfile } from "./components/AvatarMenu";
 import { SettingsSheet, Settings, DEFAULT_SETTINGS } from "./components/SettingsSheet";
@@ -79,14 +80,37 @@ export default function App() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [contextPhoto, setContextPhoto] = useState<Photo | null>(null);
   const [pendingDelete, setPendingDelete] = useState<string[] | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined);
+  const [avatarEditSrc, setAvatarEditSrc] = useState<string | null>(null);
 
   const contentRef = useRef<HTMLElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const scrolledRef = useRef(false);
   const libColsRef = useRef(libCols);
   libColsRef.current = libCols;
 
+  const profile: UserProfile = { ...user, avatar: avatarUrl };
+
+  const pickAvatar = () => {
+    setAvatarOpen(false);
+    fileRef.current?.click();
+  };
+  const onAvatarFile = (e: ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => setAvatarEditSrc(String(reader.result));
+    reader.readAsDataURL(f);
+    e.target.value = "";
+  };
+
   const visiblePhotos = useMemo(() => photos.filter((p) => !p.hidden), [photos]);
+  // Старое сверху, новое снизу (как в iOS) — открываемся в самом низу
   const libraryPhotos = useMemo(
-    () => applyFilter(visiblePhotos, filterKey),
+    () =>
+      [...applyFilter(visiblePhotos, filterKey)].sort(
+        (a, b) => a.date.getTime() - b.date.getTime()
+      ),
     [visiblePhotos, filterKey]
   );
   const byId = useMemo(() => new Map(photos.map((p) => [p.id, p])), [photos]);
@@ -129,6 +153,22 @@ export default function App() {
     if (settings.theme === "system") delete el.dataset.theme;
     else el.dataset.theme = settings.theme;
   }, [settings.theme]);
+
+  // Открываемся в самом низу медиатеки (свежие фото внизу)
+  useEffect(() => {
+    if (tab !== "library") {
+      scrolledRef.current = false;
+      return;
+    }
+    if (album || selecting || !libraryPhotos.length || scrolledRef.current) return;
+    const el = contentRef.current;
+    if (el) {
+      requestAnimationFrame(() => {
+        el.scrollTop = el.scrollHeight;
+      });
+      scrolledRef.current = true;
+    }
+  }, [tab, album, selecting, libraryPhotos.length]);
 
   // Пинч-зум сетки
   useEffect(() => {
@@ -223,7 +263,7 @@ export default function App() {
                     <Header
                       title="Медиатека"
                       subtitle={libSubtitle}
-                      user={user}
+                      user={profile}
                       onAvatar={() => setAvatarOpen(true)}
                       selecting={selecting}
                       selectedCount={selected.size}
@@ -246,7 +286,7 @@ export default function App() {
                   <>
                     <Header
                       title="Коллекции"
-                      user={user}
+                      user={profile}
                       onAvatar={() => setAvatarOpen(true)}
                     />
                     <Collections
@@ -375,11 +415,38 @@ export default function App() {
 
         {avatarOpen && (
           <AvatarMenu
-            user={user}
+            user={profile}
             onClose={() => setAvatarOpen(false)}
+            onChangeAvatar={pickAvatar}
             onOpenSettings={() => {
               setAvatarOpen(false);
               setSettingsOpen(true);
+            }}
+          />
+        )}
+
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          hidden
+          onChange={onAvatarFile}
+        />
+        {avatarEditSrc && (
+          <Editor
+            photo={{
+              id: "avatar",
+              thumb: avatarEditSrc,
+              full: avatarEditSrc,
+              favorite: false,
+              kind: "photo",
+              date: new Date(),
+              source: "demo",
+            }}
+            onCancel={() => setAvatarEditSrc(null)}
+            onSave={(url) => {
+              setAvatarUrl(url);
+              setAvatarEditSrc(null);
             }}
           />
         )}

@@ -2,11 +2,15 @@
 export interface Adjust {
   exposure: number;
   brilliance: number;
+  highlights: number;
+  shadows: number;
   contrast: number;
+  blackpoint: number;
   saturation: number;
   vibrance: number;
   warmth: number;
   tint: number;
+  definition: number;
   sharpness: number; // 0..100, применяется при сохранении
   vignette: number; // 0..100
 }
@@ -14,11 +18,15 @@ export interface Adjust {
 export const NEUTRAL: Adjust = {
   exposure: 0,
   brilliance: 0,
+  highlights: 0,
+  shadows: 0,
   contrast: 0,
+  blackpoint: 0,
   saturation: 0,
   vibrance: 0,
   warmth: 0,
   tint: 0,
+  definition: 0,
   sharpness: 0,
   vignette: 0,
 };
@@ -33,11 +41,15 @@ export interface ToolDef {
 export const TOOLS: ToolDef[] = [
   { key: "exposure", label: "Экспозиция", min: -100, max: 100 },
   { key: "brilliance", label: "Блеск", min: -100, max: 100 },
+  { key: "highlights", label: "Света", min: -100, max: 100 },
+  { key: "shadows", label: "Тени", min: -100, max: 100 },
   { key: "contrast", label: "Контраст", min: -100, max: 100 },
+  { key: "blackpoint", label: "Чёрная точка", min: -100, max: 100 },
   { key: "saturation", label: "Насыщенность", min: -100, max: 100 },
   { key: "vibrance", label: "Сочность", min: -100, max: 100 },
   { key: "warmth", label: "Теплота", min: -100, max: 100 },
   { key: "tint", label: "Оттенок", min: -100, max: 100 },
+  { key: "definition", label: "Чёткость", min: -100, max: 100 },
   { key: "sharpness", label: "Резкость", min: 0, max: 100 },
   { key: "vignette", label: "Виньетка", min: 0, max: 100 },
 ];
@@ -63,13 +75,21 @@ export const PRESETS: FilterPreset[] = [
 
 /** CSS-фильтр коррекций для живого превью */
 export function buildFilter(a: Adjust, presetCss = ""): string {
-  const exposure = 1 + a.exposure / 180;
-  const contrast = 1 + a.contrast / 130 + a.brilliance / 400;
+  const exposure = 1 + a.exposure / 180 + a.shadows / 700;
+  const brightness = Math.max(0, exposure * (1 + a.brilliance / 500));
+  const contrast = Math.max(
+    0,
+    1 +
+      a.contrast / 130 +
+      a.brilliance / 400 +
+      a.definition / 260 +
+      a.blackpoint / 320 -
+      a.highlights / 650
+  );
   const saturate = Math.max(
     0,
-    1 + a.saturation / 130 + a.vibrance / 220
+    1 + a.saturation / 130 + a.vibrance / 220 + a.definition / 420
   );
-  const brightness = exposure * (1 + a.brilliance / 500);
   const sepia = a.warmth > 0 ? a.warmth / 240 : 0;
   const hue = a.tint * 0.5 + (a.warmth < 0 ? a.warmth * 0.12 : 0);
   return [
