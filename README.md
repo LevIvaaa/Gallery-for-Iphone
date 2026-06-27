@@ -45,3 +45,36 @@ src/
 ```
 
 > Тестовые фото подгружаются с picsum.photos. Дальше можно заменить на свои.
+
+## 📦 Сборка IPA (нативное iOS-приложение)
+
+Веб-приложение обёрнуто в нативный iOS-проект через **Capacitor**. Схема:
+
+**Capacitor → неподписанный IPA на Codemagic → установка через Sideloadly (бесплатный Apple ID).**
+
+- `Capacitor` оборачивает готовую веб-сборку (`dist/`) в Xcode-проект (`ios/`) — код React переиспользуется на 100%.
+- `Codemagic` собирает `.ipa` на облачном Mac (физический Mac не нужен).
+- Подпись ставит `Sideloadly` бесплатным Apple ID при установке (без $99/год; приложение живёт 7 дней, до 3 приложений).
+
+### Пересборка нативной части перед сборкой IPA
+```bash
+npm run build:ios        # сборка веба с base=/ (важно: не /Gallery-for-Iphone/)
+npx cap sync ios         # копирует dist/ в ios/ и обновляет нативные зависимости
+```
+
+> ⚠️ Нативную часть собирать только через `build:ios`. Обычный `npm run build`
+> ставит `base=/Gallery-for-Iphone/` (для GitHub Pages) и в приложении даст белый экран.
+
+### Дальше (ручные шаги)
+1. **Codemagic**: зарегистрироваться на codemagic.io, подключить репозиторий,
+   запустить workflow `ios-unsigned` (см. `codemagic.yaml`), скачать `Gallery-unsigned.ipa`.
+2. **Sideloadly** (Windows): установить iTunes+iCloud (веб-версии с сайта Apple),
+   перетащить IPA в Sideloadly, войти Apple ID → Start. На iPhone: доверить профиль
+   и включить «Режим разработчика».
+
+### Параметры приложения
+| Параметр | Значение |
+|---|---|
+| Имя | `Галерея` |
+| Bundle ID | `com.levivaaa.gallery` |
+| Иконка | концепт «Диафрагма» (`assets/icon.svg` → `assets/icon.png`) |

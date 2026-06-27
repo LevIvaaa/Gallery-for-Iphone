@@ -1,0 +1,38 @@
+workflows:
+  ios-unsigned:
+    name: Gallery iOS (unsigned IPA)
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      node: 20
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Install JS deps
+        script: npm ci
+      - name: Build web (Capacitor base=/)
+        script: npm run build:ios
+      - name: Capacitor sync iOS
+        script: npx cap sync ios
+      - name: CocoaPods
+        script: |
+          cd ios/App
+          pod install
+      - name: Build unsigned .app
+        script: |
+          xcodebuild \
+            -workspace ios/App/App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
+      - name: Package unsigned IPA
+        script: |
+          cd "$CM_BUILD_DIR"
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/App.app Payload/App.app
+          zip -r Gallery-unsigned.ipa Payload
+    artifacts:
+      - Gallery-unsigned.ipa
+      - /tmp/xcodebuild_logs/*.log

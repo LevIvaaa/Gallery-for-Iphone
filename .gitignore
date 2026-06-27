@@ -36,3 +36,10 @@ Thumbs.db
 # tsc -b артефакты для конфигов
 vite.config.js
 vite.config.d.ts
+
+# --- Capacitor / iOS ---
+# Папку ios/ коммитим, но без регенерируемых артефактов:
+ios/App/Pods/
+ios/App/App/public/
+DerivedData/
+*.ipa
