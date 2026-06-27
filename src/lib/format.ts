@@ -56,6 +56,27 @@ export function detailTitle(p: Photo): string {
   return p.city || formatShortDate(p.date);
 }
 
+/** «июнь 2026» — для подзаголовка медиатеки при прокрутке */
+export function monthYearLabel(d: Date): string {
+  const s = new Intl.DateTimeFormat("ru-RU", {
+    month: "long",
+    year: "numeric",
+  }).format(d);
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/** «3 749 объектов» с правильным склонением */
+export function objectsCount(n: number): string {
+  const num = n.toLocaleString("ru-RU");
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  let word = "объектов";
+  if (mod10 === 1 && mod100 !== 11) word = "объект";
+  else if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20))
+    word = "объекта";
+  return `${num} ${word}`;
+}
+
 export function formatBytes(bytes?: number): string | undefined {
   if (!bytes) return undefined;
   const units = ["Б", "КБ", "МБ", "ГБ"];

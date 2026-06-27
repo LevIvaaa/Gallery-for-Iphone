@@ -227,6 +227,19 @@ export const GridIcon = ({ size = 24, className }: IconProps) => (
   </svg>
 );
 
+export const PlayIcon = ({ size = 24, className }: IconProps) => (
+  <svg {...base(size)} className={className}>
+    <circle cx="12" cy="12" r="11" fill="rgba(0,0,0,0.35)" />
+    <path d="M10 8.5l6 3.5-6 3.5z" fill="#fff" />
+  </svg>
+);
+
+export const ChevronDownIcon = ({ size = 24, className }: IconProps) => (
+  <svg {...base(size)} className={className}>
+    <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
 export const CheckIcon = ({ size = 24, className }: IconProps) => (
   <svg {...base(size)} className={className}>
     <path d="M5 12l5 5 9-11" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />

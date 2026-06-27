@@ -8,8 +8,8 @@ import { SettingsSheet } from "./components/SettingsSheet";
 import { Collections, OpenCollection } from "./components/Collections";
 import { SearchScreen } from "./components/SearchScreen";
 import { AddToAlbumScreen } from "./components/AddToAlbumScreen";
-import { ScrollDateBubble } from "./components/ScrollDateBubble";
 import { usePhotoLibrary } from "./hooks/usePhotoLibrary";
+import { objectsCount, monthYearLabel } from "./lib/format";
 import { ChevronLeftIcon, LockIcon } from "./icons";
 import type { Photo, UserAlbum } from "./types";
 
@@ -58,6 +58,8 @@ export default function App() {
   const [addAlbumOpen, setAddAlbumOpen] = useState(false);
   // Видимость бара Годы/Месяцы/Все: появляется при прокрутке середины ленты
   const [segVisible, setSegVisible] = useState(false);
+  // Подзаголовок медиатеки: «N объектов» вверху, дата при прокрутке
+  const [libSubtitle, setLibSubtitle] = useState("");
 
   const contentRef = useRef<HTMLElement>(null);
   const libColsRef = useRef(libCols);
@@ -85,11 +87,29 @@ export default function App() {
     const atTop = scrollTop < 12;
     const atBottom = scrollTop + clientHeight >= scrollHeight - 12;
     setSegVisible(!atTop && !atBottom);
+
+    // Подзаголовок: вверху — счётчик, при прокрутке — месяц/год верхнего фото
+    if (atTop) {
+      setLibSubtitle(objectsCount(visiblePhotos.length));
+    } else {
+      const cell = el.clientWidth / libCols;
+      const idx = Math.min(
+        Math.floor(scrollTop / cell) * libCols,
+        visiblePhotos.length - 1
+      );
+      const ph = visiblePhotos[Math.max(0, idx)];
+      if (ph) setLibSubtitle(monthYearLabel(ph.date));
+    }
   };
 
   useEffect(() => {
     if (tab !== "library" || album) setSegVisible(false);
   }, [tab, album]);
+
+  // Счётчик объектов как стартовый подзаголовок
+  useEffect(() => {
+    setLibSubtitle(objectsCount(visiblePhotos.length));
+  }, [visiblePhotos.length]);
 
   // Пинч-зум сетки (как в iOS): два пальца меняют число колонок
   useEffect(() => {
@@ -167,6 +187,7 @@ export default function App() {
                   <>
                     <Header
                       title="Медиатека"
+                      subtitle={libSubtitle}
                       user={user}
                       onAvatar={() => setAvatarOpen(true)}
                     />
@@ -221,10 +242,6 @@ export default function App() {
                 )}
               </div>
             </main>
-
-            {tab === "library" && !album && (
-              <ScrollDateBubble containerRef={contentRef} />
-            )}
 
             {tab === "library" && !album && (
               <div className={`segmented glass ${segVisible ? "show" : ""}`}>
@@ -303,16 +320,21 @@ export default function App() {
 
 function Header({
   title,
+  subtitle,
   user,
   onAvatar,
 }: {
   title: string;
+  subtitle?: string;
   user: UserProfile;
   onAvatar: () => void;
 }) {
   return (
     <div className="top-head sticky scrim">
-      <h1 className="big-title">{title}</h1>
+      <div className="head-titles">
+        <h1 className="big-title">{title}</h1>
+        {subtitle && <p className="head-sub">{subtitle}</p>}
+      </div>
       <Avatar user={user} size={34} onClick={onAvatar} />
     </div>
   );
