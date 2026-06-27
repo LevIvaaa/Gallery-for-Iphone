@@ -5,7 +5,7 @@ import {
   formatBytes,
   megapixels,
 } from "../lib/format";
-import { CloseIcon, MapPinIcon } from "../icons";
+import { CloseIcon, MapPinIcon, LockIcon } from "../icons";
 
 function Row({ label, value }: { label: string; value?: string }) {
   if (!value) return null;
@@ -19,9 +19,13 @@ function Row({ label, value }: { label: string; value?: string }) {
 
 export function MetadataSheet({
   photo,
+  hidden,
+  onToggleHidden,
   onClose,
 }: {
   photo: Photo;
+  hidden?: boolean;
+  onToggleHidden?: () => void;
   onClose: () => void;
 }) {
   const m = photo.meta;
@@ -85,6 +89,13 @@ export function MetadataSheet({
                 Открыть на карте
               </a>
             </>
+          )}
+
+          {onToggleHidden && (
+            <button className="meta-action" onClick={onToggleHidden}>
+              <LockIcon size={18} />
+              {hidden ? "Показать фото" : "Скрыть фото"}
+            </button>
           )}
         </div>
       </div>

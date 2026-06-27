@@ -5,22 +5,10 @@ import { getFullSrc } from "../services/photoLibrary";
 import { reverseGeocode } from "../lib/geocode";
 import { haptic } from "../lib/haptics";
 import { sharePhoto } from "../lib/share";
-import { autoEnhance, denoise } from "../lib/imageEdit";
-import { removeBackground } from "../services/ai";
 import { deleteFromDevice } from "../services/nativeDelete";
 import { MetadataSheet } from "./MetadataSheet";
-import { EditMenu } from "./EditMenu";
 import { Editor } from "./Editor";
-import {
-  ArrowLeftIcon,
-  DotsIcon,
-  ShareIcon,
-  HeartIcon,
-  InfoIcon,
-  TrashIcon,
-} from "../icons";
-
-const SWIPE = 70; // порог жеста, px
+import { ArrowLeftIcon, AdjustIcon, ShareIcon, HeartIcon, TrashIcon } from "../icons";
 
 export function PhotoViewer({
   photos,
@@ -45,26 +33,28 @@ export function PhotoViewer({
 }) {
   const photo = photos[index];
   const [fullscreen, setFullscreen] = useState(false);
-  const [imgSrc, setImgSrc] = useState<string>(photo.full || photo.thumb);
+  const [fullSrc, setFullSrc] = useState<string | null>(photo.full);
   const [showMeta, setShowMeta] = useState(false);
-  const [showEdit, setShowEdit] = useState(false);
-  const [editorTab, setEditorTab] = useState<
-    "crop" | "adjust" | "filters" | "markup" | null
-  >(null);
-  const [toast, setToast] = useState<string | null>(null);
-  const [drag, setDrag] = useState({ x: 0, y: 0, active: false });
+  const [showEditor, setShowEditor] = useState(false);
 
+  // Жесты
+  const [dragX, setDragX] = useState(0);
+  const [dragY, setDragY] = useState(0);
+  const [animating, setAnimating] = useState(false);
+  const pagerRef = useRef<HTMLDivElement>(null);
   const start = useRef({ x: 0, y: 0 });
   const axis = useRef<"none" | "h" | "v">("none");
   const moved = useRef(false);
+  const pendingDir = useRef(0);
+  const widthRef = useRef(1);
 
-  // Полноразмерное фото (на устройстве — лениво по идентификатору)
+  // Полноразмерное фото на устройстве
   useEffect(() => {
     let cancelled = false;
-    setImgSrc(photo.full || photo.thumb);
+    setFullSrc(photo.full);
     if (!photo.full && photo.identifier) {
       getFullSrc(photo.identifier)
-        .then((src) => !cancelled && setImgSrc(src))
+        .then((src) => !cancelled && setFullSrc(src))
         .catch(() => {});
     }
     return () => {
@@ -72,7 +62,7 @@ export function PhotoViewer({
     };
   }, [photo]);
 
-  // Геокодинг города для заголовка (п.7), если есть координаты, но нет города
+  // Геокодинг города для заголовка
   useEffect(() => {
     if (photo.location && !photo.city) {
       reverseGeocode(photo.location.lat, photo.location.lng).then(
@@ -85,60 +75,79 @@ export function PhotoViewer({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
-      if (e.key === "ArrowRight") go(1);
-      if (e.key === "ArrowLeft") go(-1);
+      if (e.key === "ArrowRight") nav(1);
+      if (e.key === "ArrowLeft") nav(-1);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   });
 
-  const flash = (msg: string) => {
-    setToast(msg);
-    window.setTimeout(() => setToast(null), 1600);
-  };
-
-  const go = (dir: number) => {
+  const nav = (dir: number) => {
     const next = index + dir;
-    if (next < 0 || next >= photos.length) return;
+    if (next < 0 || next >= photos.length || animating) return;
     haptic("light");
-    onIndexChange(next);
+    widthRef.current = pagerRef.current?.clientWidth || 1;
+    pendingDir.current = dir;
+    setAnimating(true);
+    setDragX(dir > 0 ? -widthRef.current : widthRef.current);
   };
 
-  // ===== Жесты (п.9, п.11) =====
-  const onTouchStart = (e: React.TouchEvent) => {
-    const t = e.touches[0];
-    start.current = { x: t.clientX, y: t.clientY };
+  const onPagerTransitionEnd = () => {
+    if (!animating) return;
+    if (pendingDir.current !== 0) {
+      onIndexChange(index + pendingDir.current);
+      pendingDir.current = 0;
+    }
+    setAnimating(false);
+    setDragX(0);
+    setDragY(0);
+  };
+
+  // ===== Жесты =====
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (animating) return;
+    start.current = { x: e.clientX, y: e.clientY };
     axis.current = "none";
     moved.current = false;
-    setDrag({ x: 0, y: 0, active: true });
+    widthRef.current = pagerRef.current?.clientWidth || 1;
   };
-
-  const onTouchMove = (e: React.TouchEvent) => {
-    const t = e.touches[0];
-    const dx = t.clientX - start.current.x;
-    const dy = t.clientY - start.current.y;
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (e.buttons === 0 && e.pointerType === "mouse") return;
+    if (!start.current) return;
+    const dx = e.clientX - start.current.x;
+    const dy = e.clientY - start.current.y;
     if (axis.current === "none" && Math.hypot(dx, dy) > 10) {
       axis.current = Math.abs(dx) > Math.abs(dy) ? "h" : "v";
       moved.current = true;
     }
-    if (axis.current === "v") {
-      setDrag({ x: 0, y: dy, active: true });
-    } else if (axis.current === "h") {
-      setDrag({ x: dx * 0.4, y: 0, active: true });
+    if (axis.current === "h") {
+      let v = dx;
+      if ((index === 0 && dx > 0) || (index === photos.length - 1 && dx < 0))
+        v = dx * 0.3; // сопротивление на краях
+      setDragX(v);
+    } else if (axis.current === "v") {
+      setDragY(dy);
     }
   };
-
-  const onTouchEnd = () => {
-    const { x, y } = drag;
-    setDrag({ x: 0, y: 0, active: false });
-
-    if (axis.current === "v") {
-      if (y > 110) return onClose(); // свайп вниз — закрыть
-      if (y < -90) return setShowMeta(true); // свайп вверх — метаданные
-    } else if (axis.current === "h") {
-      if (x < -SWIPE * 0.4) return go(1);
-      if (x > SWIPE * 0.4) return go(-1);
+  const onPointerUp = () => {
+    const thr = widthRef.current * 0.22;
+    if (axis.current === "h") {
+      if (dragX <= -thr && index < photos.length - 1) nav(1);
+      else if (dragX >= thr && index > 0) nav(-1);
+      else {
+        setAnimating(true);
+        setDragX(0);
+      }
+    } else if (axis.current === "v") {
+      if (dragY > 120) {
+        onClose();
+        return;
+      }
+      if (dragY < -90) setShowMeta(true);
+      setAnimating(true);
+      setDragY(0);
     }
+    axis.current = "none";
   };
 
   const onImageClick = () => {
@@ -146,95 +155,43 @@ export function PhotoViewer({
       moved.current = false;
       return;
     }
-    setFullscreen((v) => !v); // тап — на весь экран (п.8)
+    setFullscreen((v) => !v);
   };
 
   const handleShare = () => {
     haptic("light");
-    sharePhoto(photo).catch(() => {});
+    sharePhoto({ ...photo, full: fullSrc ?? photo.full }).catch(() => {});
   };
-
   const handleFavorite = () => {
     haptic("medium");
     onToggleFavorite(photo.id);
   };
-
   const handleDelete = async () => {
     haptic("heavy");
     const id = photo.id;
-    const ident = photo.identifier;
-    // На устройстве — реальное удаление с системным подтверждением Apple
-    const ok = await deleteFromDevice(ident);
-    if (!ok) return; // пользователь нажал «Запретить»
+    const ok = await deleteFromDevice(photo.identifier);
+    if (!ok) return;
     const isLast = photos.length <= 1;
     if (index >= photos.length - 1 && index > 0) onIndexChange(index - 1);
     onDelete(id);
     if (isLast) onClose();
   };
 
-  const editTabs: Record<string, "crop" | "adjust" | "filters" | "markup"> = {
-    crop: "crop",
-    rotate: "crop",
-    adjust: "adjust",
-    filters: "filters",
-    markup: "markup",
-  };
-
-  const runAI = async (key: string, label: string) => {
-    try {
-      let url: string;
-      if (key === "ai-enhance") {
-        setToast("Улучшаю…");
-        url = await autoEnhance(imgSrc);
-      } else if (key === "ai-denoise") {
-        setToast("Убираю шум…");
-        url = await denoise(imgSrc);
-      } else if (key === "ai-removebg") {
-        setToast("Загрузка ИИ-модели…");
-        url = await removeBackground(imgSrc, (p) => {
-          if (p?.progress) setToast(`Обработка… ${Math.round(p.progress)}%`);
-        });
-      } else {
-        flash(`«${label}» — нужна генеративная модель (скоро)`);
-        return;
-      }
-      onUpdatePhoto(photo.id, { thumb: url, full: url });
-      flash("Готово");
-    } catch {
-      flash("Не удалось обработать");
-    }
-  };
-
-  const handleEditAction = (key: string, label: string) => {
-    setShowEdit(false);
-    if (key.startsWith("ai-")) {
-      runAI(key, label);
-      return;
-    }
-    if (key === "hide") {
-      haptic("light");
-      onToggleHidden(photo.id);
-      flash(photo.hidden ? "Показано" : "Скрыто");
-      return;
-    }
-    const t = editTabs[key];
-    if (t) setEditorTab(t);
-  };
-
-  const dragStyle = drag.active
-    ? { transform: `translate(${drag.x}px, ${drag.y}px)` }
-    : undefined;
-  const bgDim = Math.min(0.001 * Math.abs(drag.y), 0.4);
+  // Окно из трёх слайдов для пейджера
+  const slides = [index - 1, index, index + 1];
+  const dim = Math.min(Math.abs(dragY) / 800, 0.55);
 
   return (
-    <div className={`viewer ${fullscreen ? "fs" : ""}`} data-fullscreen={fullscreen}>
-      <div
-        className="viewer-bg"
-        style={{
-          backgroundImage: fullscreen ? "none" : `url(${photo.thumb})`,
-          opacity: 1 - bgDim,
-        }}
-      />
+    <div
+      className={`viewer ${fullscreen ? "fs" : ""}`}
+      style={{ background: `rgba(0,0,0,${fullscreen ? 1 : 1 - dim})` }}
+    >
+      {!fullscreen && (
+        <div
+          className="viewer-bg"
+          style={{ backgroundImage: `url(${photo.thumb})`, opacity: 1 - dim }}
+        />
+      )}
 
       {!fullscreen && (
         <header className="viewer-top glass">
@@ -250,26 +207,51 @@ export function PhotoViewer({
       )}
 
       <div
-        className={`viewer-stage ${drag.active ? "dragging" : ""}`}
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
+        className="pager"
+        ref={pagerRef}
+        style={{
+          transform: `translateX(calc(-100% + ${dragX}px))`,
+          transition: animating ? "transform 0.32s cubic-bezier(0.22,1,0.36,1)" : "none",
+        }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+        onTransitionEnd={onPagerTransitionEnd}
       >
-        <img
-          key={photo.id}
-          src={imgSrc}
-          alt={photo.caption ?? ""}
-          className="viewer-img"
-          style={dragStyle}
-          draggable={false}
-          onClick={onImageClick}
-        />
+        {slides.map((si, k) => {
+          const p = photos[si];
+          const isCurrent = k === 1;
+          return (
+            <div className="slide" key={si}>
+              {p && (
+                <img
+                  src={isCurrent ? fullSrc ?? p.thumb : p.thumb}
+                  alt={p.caption ?? ""}
+                  className="viewer-img"
+                  draggable={false}
+                  style={
+                    isCurrent && axis.current === "v"
+                      ? {
+                          transform: `translateY(${dragY}px) scale(${Math.max(
+                            0.85,
+                            1 - Math.abs(dragY) / 1200
+                          )})`,
+                        }
+                      : undefined
+                  }
+                  onClick={isCurrent ? onImageClick : undefined}
+                />
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {!fullscreen && (
         <footer className="viewer-bottom glass">
-          <button className="vbtn" onClick={() => setShowEdit(true)} aria-label="Редактировать">
-            <DotsIcon size={22} />
+          <button className="vbtn" onClick={() => setShowEditor(true)} aria-label="Редактировать">
+            <AdjustIcon size={22} />
           </button>
           <button className="vbtn" onClick={handleShare} aria-label="Поделиться">
             <ShareIcon size={21} />
@@ -281,36 +263,27 @@ export function PhotoViewer({
           >
             <HeartIcon size={21} filled={photo.favorite} />
           </button>
-          <button className="vbtn" onClick={() => setShowMeta(true)} aria-label="Информация">
-            <InfoIcon size={21} />
-          </button>
           <button className="vbtn danger" onClick={handleDelete} aria-label="Удалить">
             <TrashIcon size={21} />
           </button>
         </footer>
       )}
 
-      {toast && <div className="toast glass">{toast}</div>}
-
       {showMeta && (
-        <MetadataSheet photo={photo} onClose={() => setShowMeta(false)} />
-      )}
-      {showEdit && (
-        <EditMenu
-          onClose={() => setShowEdit(false)}
-          onAction={handleEditAction}
+        <MetadataSheet
+          photo={photo}
           hidden={photo.hidden}
+          onToggleHidden={() => onToggleHidden(photo.id)}
+          onClose={() => setShowMeta(false)}
         />
       )}
-      {editorTab && (
+      {showEditor && (
         <Editor
-          photo={photo}
-          initialTab={editorTab}
-          onCancel={() => setEditorTab(null)}
+          photo={{ ...photo, full: fullSrc ?? photo.full }}
+          onCancel={() => setShowEditor(false)}
           onSave={(url) => {
             onUpdatePhoto(photo.id, { thumb: url, full: url });
-            setEditorTab(null);
-            flash("Сохранено");
+            setShowEditor(false);
           }}
         />
       )}

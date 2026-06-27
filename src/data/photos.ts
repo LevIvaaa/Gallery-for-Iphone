@@ -64,7 +64,7 @@ function dateDaysAgo(days: number, hour: number, minute: number): Date {
   return d;
 }
 
-export const demoPhotos: Photo[] = samples.map((s, i) => {
+const detailed: Photo[] = samples.map((s, i) => {
   const seed = SEEDS[i];
   const portrait = s.ratio === "p";
   const w = portrait ? 2316 : 4032;
@@ -92,3 +92,47 @@ export const demoPhotos: Photo[] = samples.map((s, i) => {
     source: "demo",
   };
 });
+
+// Доп. фото, чтобы было что листать (проверка скролла/производительности)
+const extraCities = [
+  { city: "Москва", country: "Россия", lat: 55.7558, lng: 37.6173 },
+  { city: "Тбилиси", country: "Грузия", lat: 41.7151, lng: 44.8271 },
+  { city: "Стамбул", country: "Турция", lat: 41.0082, lng: 28.9784 },
+  { city: "Прага", country: "Чехия", lat: 50.0755, lng: 14.4378 },
+];
+const extraKinds: Photo["kind"][] = ["photo", "selfie", "photo", "live", "video", "screenshot"];
+
+const extra: Photo[] = Array.from({ length: 80 }, (_, i) => {
+  const portrait = i % 3 === 0;
+  const days = 4 + i * 5; // растягиваем по времени
+  const c = i % 4 === 0 ? extraCities[(i / 4) % extraCities.length | 0] : undefined;
+  return {
+    id: `demo-x${i + 1}`,
+    thumb: `https://picsum.photos/seed/extra-${i}/400/400`,
+    full: `https://picsum.photos/seed/extra-${i}/${portrait ? 900 : 1200}/${portrait ? 1200 : 900}`,
+    caption: c ? c.city : "Фото",
+    city: c?.city,
+    country: c?.country,
+    date: dateDaysAgo(days, 8 + (i % 12), (i * 13) % 60),
+    addedDate: dateDaysAgo(days, 9 + (i % 10), (i * 5) % 60),
+    favorite: i % 9 === 0,
+    kind: extraKinds[i % extraKinds.length],
+    durationSec: extraKinds[i % extraKinds.length] === "video" ? 8 + (i % 40) : undefined,
+    width: portrait ? 2316 : 4032,
+    height: portrait ? 3088 : 3024,
+    location: c ? { lat: c.lat, lng: c.lng, altitude: 100 + i } : undefined,
+    meta: {
+      camera: "iPhone 11",
+      lens: "Осн. камера — 26 мм",
+      fileName: `IMG_${3000 + i}.HEIC`,
+      fileSize: 2_500_000 + i * 40_000,
+      iso: 25 + (i % 6) * 25,
+      aperture: "f/1.8",
+      shutter: "1/120",
+      focalLength: "26 мм",
+    },
+    source: "demo" as const,
+  };
+});
+
+export const demoPhotos: Photo[] = [...detailed, ...extra];

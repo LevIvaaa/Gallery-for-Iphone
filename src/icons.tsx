@@ -227,6 +227,32 @@ export const GridIcon = ({ size = 24, className }: IconProps) => (
   </svg>
 );
 
+export const UndoIcon = ({ size = 24, className }: IconProps) => (
+  <svg {...base(size)} className={className}>
+    <path d="M9 7L4 12l5 5M4 12h11a5 5 0 010 10h-3" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+export const RedoIcon = ({ size = 24, className }: IconProps) => (
+  <svg {...base(size)} className={className}>
+    <path d="M15 7l5 5-5 5M20 12H9a5 5 0 000 10h3" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+export const FlipHIcon = ({ size = 24, className }: IconProps) => (
+  <svg {...base(size)} className={className}>
+    <path d="M12 3v18" stroke="currentColor" strokeWidth="1.6" strokeDasharray="2 2" />
+    <path d="M9 7L4 12l5 5z M15 7l5 5-5 5z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+  </svg>
+);
+
+export const RotateCwIcon = ({ size = 24, className }: IconProps) => (
+  <svg {...base(size)} className={className}>
+    <path d="M20 11a8 8 0 10-2.3 5.7" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+    <path d="M20 4v5h-5" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
 export const PlayIcon = ({ size = 24, className }: IconProps) => (
   <svg {...base(size)} className={className}>
     <circle cx="12" cy="12" r="11" fill="rgba(0,0,0,0.35)" />
