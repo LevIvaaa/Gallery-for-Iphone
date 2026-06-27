@@ -33,6 +33,7 @@ export async function loadNativePhotos(quantity = 150): Promise<Photo[]> {
       full: null, // подгружается лениво через getFullSrc
       date: m.creationDate ? new Date(m.creationDate) : new Date(),
       favorite: false,
+      kind: "photo",
       width: m.fullWidth,
       height: m.fullHeight,
       location: hasLoc

@@ -51,6 +51,12 @@ const SEEDS = [
   "oldtown", "pass", "valleyfog", "lighthouse", "tram", "wildflowers",
 ];
 
+// Тип медиа для демонстрации блока «Типы медиафайлов»
+const KINDS: Photo["kind"][] = [
+  "photo", "selfie", "photo", "video", "live", "photo",
+  "screenshot", "photo", "video", "photo", "screenrec", "live",
+];
+
 function dateDaysAgo(days: number, hour: number, minute: number): Date {
   const d = new Date();
   d.setDate(d.getDate() - days);
@@ -75,6 +81,10 @@ export const demoPhotos: Photo[] = samples.map((s, i) => {
     date: dateDaysAgo(s.daysAgo, 9 + (i % 10), (i * 7) % 60),
     addedDate: dateDaysAgo(Math.max(0, s.daysAgo - 0), 10 + (i % 8), (i * 11) % 60),
     favorite: !!s.fav,
+    kind: KINDS[i],
+    pinned: i === 0 || i === 5,
+    durationSec:
+      KINDS[i] === "video" ? 12 + i : KINDS[i] === "screenrec" ? 30 + i : undefined,
     width: w,
     height: h,
     location: s.loc,

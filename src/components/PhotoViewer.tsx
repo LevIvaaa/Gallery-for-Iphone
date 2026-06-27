@@ -5,8 +5,11 @@ import { getFullSrc } from "../services/photoLibrary";
 import { reverseGeocode } from "../lib/geocode";
 import { haptic } from "../lib/haptics";
 import { sharePhoto } from "../lib/share";
+import { autoEnhance, denoise } from "../lib/imageEdit";
+import { removeBackground } from "../services/ai";
 import { MetadataSheet } from "./MetadataSheet";
 import { EditMenu } from "./EditMenu";
+import { Editor } from "./Editor";
 import {
   ArrowLeftIcon,
   DotsIcon,
@@ -26,6 +29,7 @@ export function PhotoViewer({
   onToggleFavorite,
   onDelete,
   onSetCity,
+  onUpdatePhoto,
 }: {
   photos: Photo[];
   index: number;
@@ -34,12 +38,16 @@ export function PhotoViewer({
   onToggleFavorite: (id: string) => void;
   onDelete: (id: string) => void;
   onSetCity: (id: string, city: string) => void;
+  onUpdatePhoto: (id: string, patch: Partial<Photo>) => void;
 }) {
   const photo = photos[index];
   const [fullscreen, setFullscreen] = useState(false);
   const [imgSrc, setImgSrc] = useState<string>(photo.full || photo.thumb);
   const [showMeta, setShowMeta] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
+  const [editorTab, setEditorTab] = useState<
+    "crop" | "adjust" | "filters" | "markup" | null
+  >(null);
   const [toast, setToast] = useState<string | null>(null);
   const [drag, setDrag] = useState({ x: 0, y: 0, active: false });
 
@@ -157,9 +165,47 @@ export function PhotoViewer({
     if (isLast) onClose();
   };
 
-  const handleEditAction = (_key: string, label: string) => {
+  const editTabs: Record<string, "crop" | "adjust" | "filters" | "markup"> = {
+    crop: "crop",
+    rotate: "crop",
+    adjust: "adjust",
+    filters: "filters",
+    markup: "markup",
+  };
+
+  const runAI = async (key: string, label: string) => {
+    try {
+      let url: string;
+      if (key === "ai-enhance") {
+        setToast("Улучшаю…");
+        url = await autoEnhance(imgSrc);
+      } else if (key === "ai-denoise") {
+        setToast("Убираю шум…");
+        url = await denoise(imgSrc);
+      } else if (key === "ai-removebg") {
+        setToast("Загрузка ИИ-модели…");
+        url = await removeBackground(imgSrc, (p) => {
+          if (p?.progress) setToast(`Обработка… ${Math.round(p.progress)}%`);
+        });
+      } else {
+        flash(`«${label}» — нужна генеративная модель (скоро)`);
+        return;
+      }
+      onUpdatePhoto(photo.id, { thumb: url, full: url });
+      flash("Готово");
+    } catch {
+      flash("Не удалось обработать");
+    }
+  };
+
+  const handleEditAction = (key: string, label: string) => {
     setShowEdit(false);
-    flash(`«${label}» — скоро`);
+    if (key.startsWith("ai-")) {
+      runAI(key, label);
+      return;
+    }
+    const t = editTabs[key];
+    if (t) setEditorTab(t);
   };
 
   const dragStyle = drag.active
@@ -238,6 +284,18 @@ export function PhotoViewer({
       )}
       {showEdit && (
         <EditMenu onClose={() => setShowEdit(false)} onAction={handleEditAction} />
+      )}
+      {editorTab && (
+        <Editor
+          photo={photo}
+          initialTab={editorTab}
+          onCancel={() => setEditorTab(null)}
+          onSave={(url) => {
+            onUpdatePhoto(photo.id, { thumb: url, full: url });
+            setEditorTab(null);
+            flash("Сохранено");
+          }}
+        />
       )}
     </div>
   );

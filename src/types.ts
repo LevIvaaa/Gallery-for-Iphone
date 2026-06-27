@@ -15,6 +15,14 @@ export interface PhotoMeta {
   focalLength?: string; // 26 мм
 }
 
+export type MediaKind =
+  | "photo"
+  | "video"
+  | "live"
+  | "selfie"
+  | "screenshot"
+  | "screenrec";
+
 export interface Photo {
   id: string;
   /** Идентификатор ассета в нативной медиатеке (для подгрузки полного фото) */
@@ -31,11 +39,22 @@ export interface Photo {
   /** Когда добавлено в медиатеку */
   addedDate?: Date;
   favorite: boolean;
+  kind: MediaKind;
+  pinned?: boolean;
+  hidden?: boolean;
+  durationSec?: number; // для видео/записей экрана
   width?: number;
   height?: number;
   location?: GeoLocation;
   meta?: PhotoMeta;
   source: "demo" | "native";
+}
+
+/** Пользовательский альбом (создаётся в приложении) */
+export interface UserAlbum {
+  id: string;
+  title: string;
+  photoIds: string[];
 }
 
 export type PermissionState =

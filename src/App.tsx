@@ -1,13 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
-import { TabBar, Tab } from "./components/TabBar";
+import { useEffect, useRef, useState } from "react";
+import { BottomBar, Tab } from "./components/BottomBar";
 import { PhotoGrid } from "./components/PhotoGrid";
 import { PhotoViewer } from "./components/PhotoViewer";
 import { PermissionScreen } from "./components/PermissionScreen";
 import { Avatar, AvatarMenu, UserProfile } from "./components/AvatarMenu";
 import { SettingsSheet } from "./components/SettingsSheet";
+import { Collections, OpenCollection } from "./components/Collections";
+import { SearchScreen } from "./components/SearchScreen";
+import { AddToAlbumScreen } from "./components/AddToAlbumScreen";
+import { ScrollDateBubble } from "./components/ScrollDateBubble";
 import { usePhotoLibrary } from "./hooks/usePhotoLibrary";
-import { ChevronLeftIcon } from "./icons";
-import type { Photo } from "./types";
+import { ChevronLeftIcon, LockIcon } from "./icons";
+import type { Photo, UserAlbum } from "./types";
 
 const user: UserProfile = {
   name: "Lev Iva",
@@ -20,6 +24,12 @@ const segments = [
   { key: "all", label: "Все", cols: 3 },
 ];
 
+interface OpenAlbum {
+  title: string;
+  photos: Photo[];
+  hint?: string;
+}
+
 export default function App() {
   const {
     permission,
@@ -29,21 +39,24 @@ export default function App() {
     toggleFavorite,
     removePhoto,
     setCity,
+    updatePhoto,
   } = usePhotoLibrary();
 
   const [tab, setTab] = useState<Tab>("library");
   const [seg, setSeg] = useState("all");
+  const [colCols, setColCols] = useState(2);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
-  const [album, setAlbum] = useState<{ title: string; photos: Photo[] } | null>(null);
+  const [album, setAlbum] = useState<OpenAlbum | null>(null);
+  const [albums, setAlbums] = useState<UserAlbum[]>([]);
   const [avatarOpen, setAvatarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [addAlbumOpen, setAddAlbumOpen] = useState(false);
 
+  const contentRef = useRef<HTMLElement>(null);
   const columns = segments.find((s) => s.key === seg)?.cols ?? 3;
-
-  // Список, по которому листает просмотрщик (живой, чтобы удаление отражалось)
   const viewerList = album ? album.photos : photos;
 
-  // Подстраховка: индекс не выходит за границы после удаления
   useEffect(() => {
     if (viewerIndex === null) return;
     if (viewerList.length === 0) setViewerIndex(null);
@@ -51,31 +64,24 @@ export default function App() {
       setViewerIndex(viewerList.length - 1);
   }, [viewerList, viewerIndex]);
 
-  const collections = useMemo(() => {
-    const favorites = photos.filter((p) => p.favorite);
-    const recents = photos.slice(0, 12);
-    const cityMap = new Map<string, Photo[]>();
-    for (const p of photos) {
-      if (!p.city) continue;
-      const arr = cityMap.get(p.city) ?? [];
-      arr.push(p);
-      cityMap.set(p.city, arr);
-    }
-    const result: { title: string; photos: Photo[] }[] = [
-      { title: "Избранное", photos: favorites },
-      { title: "Недавние", photos: recents },
-    ];
-    for (const [city, items] of cityMap) result.push({ title: city, photos: items });
-    return result.filter((c) => c.photos.length > 0);
-  }, [photos]);
-
-  const openPhotoIn = (list: Photo[], p: Photo, asAlbum?: { title: string }) => {
+  const openPhotoIn = (list: Photo[], p: Photo, keepAlbum?: boolean) => {
+    if (!keepAlbum) setAlbum(null);
     const idx = list.findIndex((x) => x.id === p.id);
-    if (asAlbum) setAlbum({ title: asAlbum.title, photos: list });
     setViewerIndex(idx >= 0 ? idx : 0);
   };
 
-  // Экран запроса доступа (на устройстве, пока доступ не выдан)
+  const openCollection = (c: OpenCollection) => {
+    setAlbum({ title: c.title, photos: c.photos, hint: c.emptyHint });
+  };
+
+  const createAlbum = (name: string, ids: string[]) => {
+    setAlbums((prev) => [
+      ...prev,
+      { id: `al-${Date.now()}`, title: name, photoIds: ids },
+    ]);
+    setAddAlbumOpen(false);
+  };
+
   const needPermission = permission === "prompt" || permission === "denied";
 
   return (
@@ -89,10 +95,14 @@ export default function App() {
           />
         ) : (
           <>
-            <main className="content">
+            <main className="content" ref={contentRef}>
               {tab === "library" && (
                 <>
-                  <Header title="Медиатека" user={user} onAvatar={() => setAvatarOpen(true)} />
+                  <StickyHeader
+                    title="Медиатека"
+                    user={user}
+                    onAvatar={() => setAvatarOpen(true)}
+                  />
                   <PhotoGrid
                     photos={photos}
                     columns={columns}
@@ -103,46 +113,52 @@ export default function App() {
 
               {tab === "collections" && !album && (
                 <>
-                  <Header title="Коллекции" user={user} onAvatar={() => setAvatarOpen(true)} />
-                  <div className="albums">
-                    {collections.map((c) => (
-                      <button
-                        key={c.title}
-                        className="album-card"
-                        onClick={() => setAlbum(c)}
-                      >
-                        <div className="album-cover">
-                          <img src={c.photos[0].thumb} alt={c.title} draggable={false} />
-                        </div>
-                        <div className="album-info">
-                          <span className="album-title">{c.title}</span>
-                          <span className="album-count">{c.photos.length}</span>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
+                  <StickyHeader
+                    title="Коллекции"
+                    user={user}
+                    onAvatar={() => setAvatarOpen(true)}
+                  />
+                  <Collections
+                    photos={photos}
+                    albums={albums}
+                    columns={colCols}
+                    onColumns={setColCols}
+                    onOpen={openCollection}
+                    onCreateAlbum={() => setAddAlbumOpen(true)}
+                  />
                 </>
               )}
 
-              {tab === "collections" && album && (
+              {album && (
                 <>
-                  <div className="album-head">
+                  <div className="top-head sticky glass album-sticky">
                     <button className="back-link" onClick={() => setAlbum(null)}>
                       <ChevronLeftIcon size={22} />
-                      <span>Коллекции</span>
+                      <span>Назад</span>
                     </button>
-                    <h1 className="big-title">{album.title}</h1>
+                    <h1 className="big-title small">{album.title}</h1>
                   </div>
-                  <PhotoGrid
-                    photos={album.photos}
-                    columns={3}
-                    onOpen={(p) => openPhotoIn(album.photos, p, { title: album.title })}
-                  />
+                  {album.photos.length ? (
+                    <PhotoGrid
+                      photos={album.photos}
+                      columns={colCols + 1}
+                      onOpen={(p) => openPhotoIn(album.photos, p, true)}
+                    />
+                  ) : (
+                    <div className="empty-album">
+                      <LockIcon size={42} />
+                      <p>{album.hint || "Здесь пока пусто."}</p>
+                    </div>
+                  )}
                 </>
               )}
             </main>
 
-            {tab === "library" && (
+            {tab === "library" && !album && (
+              <ScrollDateBubble containerRef={contentRef} />
+            )}
+
+            {tab === "library" && !album && (
               <div className="segmented glass">
                 {segments.map((s) => (
                   <button
@@ -156,12 +172,13 @@ export default function App() {
               </div>
             )}
 
-            <TabBar
+            <BottomBar
               active={tab}
               onChange={(t) => {
                 setTab(t);
                 setAlbum(null);
               }}
+              onSearch={() => setSearchOpen(true)}
             />
           </>
         )}
@@ -171,13 +188,30 @@ export default function App() {
             photos={viewerList}
             index={viewerIndex}
             onIndexChange={setViewerIndex}
-            onClose={() => {
-              setViewerIndex(null);
-              if (tab === "library") setAlbum(null);
-            }}
+            onClose={() => setViewerIndex(null)}
             onToggleFavorite={toggleFavorite}
             onDelete={removePhoto}
             onSetCity={setCity}
+            onUpdatePhoto={updatePhoto}
+          />
+        )}
+
+        {searchOpen && (
+          <SearchScreen
+            photos={photos}
+            onOpen={(p) => {
+              setSearchOpen(false);
+              openPhotoIn(photos, p);
+            }}
+            onClose={() => setSearchOpen(false)}
+          />
+        )}
+
+        {addAlbumOpen && (
+          <AddToAlbumScreen
+            photos={photos}
+            onCancel={() => setAddAlbumOpen(false)}
+            onCreate={createAlbum}
           />
         )}
 
@@ -197,7 +231,7 @@ export default function App() {
   );
 }
 
-function Header({
+function StickyHeader({
   title,
   user,
   onAvatar,
@@ -207,7 +241,7 @@ function Header({
   onAvatar: () => void;
 }) {
   return (
-    <div className="top-head">
+    <div className="top-head sticky glass">
       <h1 className="big-title">{title}</h1>
       <Avatar user={user} size={34} onClick={onAvatar} />
     </div>

@@ -27,9 +27,10 @@ const basic: EditAction[] = [
 
 const ai: EditAction[] = [
   { key: "ai-enhance", label: "Улучшить", Icon: SparklesIcon, ai: true },
+  { key: "ai-removebg", label: "Удалить фон", Icon: EraserIcon, ai: true },
+  { key: "ai-denoise", label: "Убрать шум", Icon: SparklesIcon, ai: true },
   { key: "ai-cleanup", label: "Убрать объект", Icon: EraserIcon, ai: true },
   { key: "ai-expand", label: "Расширить фон", Icon: ExpandIcon, ai: true },
-  { key: "ai-denoise", label: "Убрать шум", Icon: SparklesIcon, ai: true },
 ];
 
 export function EditMenu({

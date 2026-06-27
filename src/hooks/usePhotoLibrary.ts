@@ -50,6 +50,12 @@ export function usePhotoLibrary() {
     );
   }, []);
 
+  const updatePhoto = useCallback((id: string, patch: Partial<Photo>) => {
+    setPhotos((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, ...patch } : p))
+    );
+  }, []);
+
   return {
     permission,
     photos,
@@ -58,5 +64,6 @@ export function usePhotoLibrary() {
     toggleFavorite,
     removePhoto,
     setCity,
+    updatePhoto,
   };
 }
