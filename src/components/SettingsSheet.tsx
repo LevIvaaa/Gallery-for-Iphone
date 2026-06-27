@@ -1,4 +1,5 @@
-import { CloseIcon, ChevronRightIcon } from "../icons";
+import { useState } from "react";
+import { CloseIcon, ChevronRightIcon, CheckIcon } from "../icons";
 
 export interface Settings {
   theme: "system" | "light" | "dark";
@@ -43,13 +44,11 @@ export function SettingsSheet({
   onChange: (patch: Partial<Settings>) => void;
   onClose: () => void;
 }) {
-  const cycleTheme = () => {
-    const order: Settings["theme"][] = ["system", "light", "dark"];
-    const next = order[(order.indexOf(settings.theme) + 1) % order.length];
-    onChange({ theme: next });
-  };
+  const [themePicker, setThemePicker] = useState(false);
+  const themeOptions: Settings["theme"][] = ["system", "light", "dark"];
 
   return (
+    <>
     <div className="sheet-backdrop" onClick={onClose}>
       <div className="settings-sheet glass" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-grabber" />
@@ -76,7 +75,7 @@ export function SettingsSheet({
 
           <div className="settings-group-title">Просмотр</div>
           <div className="settings-group glass-row">
-            <button className="settings-row" onClick={cycleTheme}>
+            <button className="settings-row" onClick={() => setThemePicker(true)}>
               <span>Тема</span>
               <span className="settings-value">
                 {themeLabel[settings.theme]}
@@ -103,6 +102,33 @@ export function SettingsSheet({
         </div>
       </div>
     </div>
+
+    {themePicker && (
+      <div className="sheet-backdrop" onClick={() => setThemePicker(false)} style={{ zIndex: 70 }}>
+        <div className="confirm-wrap" onClick={(e) => e.stopPropagation()}>
+          <div className="confirm-card glass">
+            <div className="confirm-text"><strong>Тема оформления</strong></div>
+            {themeOptions.map((t) => (
+              <button
+                key={t}
+                className="theme-option"
+                onClick={() => {
+                  onChange({ theme: t });
+                  setThemePicker(false);
+                }}
+              >
+                <span>{themeLabel[t]}</span>
+                {settings.theme === t && <CheckIcon size={18} />}
+              </button>
+            ))}
+          </div>
+          <button className="confirm-cancel glass" onClick={() => setThemePicker(false)}>
+            Отмена
+          </button>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 

@@ -266,6 +266,12 @@ export const ChevronDownIcon = ({ size = 24, className }: IconProps) => (
   </svg>
 );
 
+export const FilterIcon = ({ size = 24, className }: IconProps) => (
+  <svg {...base(size)} className={className}>
+    <path d="M4 6h16M7 12h10M10 18h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+  </svg>
+);
+
 export const CheckIcon = ({ size = 24, className }: IconProps) => (
   <svg {...base(size)} className={className}>
     <path d="M5 12l5 5 9-11" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />

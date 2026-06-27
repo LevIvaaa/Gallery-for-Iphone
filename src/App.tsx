@@ -6,17 +6,20 @@ import { PermissionScreen } from "./components/PermissionScreen";
 import { Avatar, AvatarMenu, UserProfile } from "./components/AvatarMenu";
 import { SettingsSheet, Settings, DEFAULT_SETTINGS } from "./components/SettingsSheet";
 import { Collections, OpenCollection } from "./components/Collections";
-import { SearchScreen } from "./components/SearchScreen";
 import { AddToAlbumScreen } from "./components/AddToAlbumScreen";
+import { FilterMenu, FilterKey } from "./components/FilterMenu";
+import { ContextMenu } from "./components/ContextMenu";
+import { SelectionBar } from "./components/SelectionBar";
+import { ConfirmSheet } from "./components/ConfirmSheet";
 import { usePhotoLibrary } from "./hooks/usePhotoLibrary";
+import { deleteManyFromDevice } from "./services/nativeDelete";
+import { sharePhoto } from "./lib/share";
+import { haptic } from "./lib/haptics";
 import { objectsCount, monthYearLabel } from "./lib/format";
 import { ChevronLeftIcon, LockIcon } from "./icons";
 import type { Photo, UserAlbum } from "./types";
 
-const user: UserProfile = {
-  name: "Lev Iva",
-  subtitle: "Apple ID · iCloud+",
-};
+const user: UserProfile = { name: "Lev Iva", subtitle: "Apple ID · iCloud+" };
 
 const segments = [
   { key: "years", label: "Годы", cols: 5 },
@@ -32,6 +35,18 @@ interface OpenAlbum {
 
 const clamp = (n: number, min: number, max: number) =>
   Math.min(Math.max(n, min), max);
+
+function applyFilter(list: Photo[], k: FilterKey): Photo[] {
+  switch (k) {
+    case "fav": return list.filter((p) => p.favorite);
+    case "photo": return list.filter((p) => p.kind === "photo");
+    case "video": return list.filter((p) => p.kind === "video");
+    case "live": return list.filter((p) => p.kind === "live");
+    case "selfie": return list.filter((p) => p.kind === "selfie");
+    case "screenshot": return list.filter((p) => p.kind === "screenshot");
+    default: return list;
+  }
+}
 
 export default function App() {
   const {
@@ -54,23 +69,28 @@ export default function App() {
   const [albums, setAlbums] = useState<UserAlbum[]>([]);
   const [avatarOpen, setAvatarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
   const [addAlbumOpen, setAddAlbumOpen] = useState(false);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
-  // Видимость бара Годы/Месяцы/Все: появляется при прокрутке середины ленты
   const [segVisible, setSegVisible] = useState(false);
-  // Подзаголовок медиатеки: «N объектов» вверху, дата при прокрутке
   const [libSubtitle, setLibSubtitle] = useState("");
+  const [filterKey, setFilterKey] = useState<FilterKey>("all");
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [contextPhoto, setContextPhoto] = useState<Photo | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<string[] | null>(null);
 
   const contentRef = useRef<HTMLElement>(null);
   const libColsRef = useRef(libCols);
   libColsRef.current = libCols;
 
-  const visiblePhotos = useMemo(
-    () => photos.filter((p) => !p.hidden),
-    [photos]
+  const visiblePhotos = useMemo(() => photos.filter((p) => !p.hidden), [photos]);
+  const libraryPhotos = useMemo(
+    () => applyFilter(visiblePhotos, filterKey),
+    [visiblePhotos, filterKey]
   );
-  const viewerList = album ? album.photos : visiblePhotos;
+  const byId = useMemo(() => new Map(photos.map((p) => [p.id, p])), [photos]);
+  const viewerList = album ? album.photos : libraryPhotos;
 
   useEffect(() => {
     if (viewerIndex === null) return;
@@ -79,26 +99,19 @@ export default function App() {
       setViewerIndex(viewerList.length - 1);
   }, [viewerList, viewerIndex]);
 
-  // Скролл-логика: бар Годы/Месяцы/Все виден в середине ленты,
-  // прячется наверху (только зашёл) и в самом низу (#бар).
   const handleScroll = () => {
     const el = contentRef.current;
-    if (!el || tab !== "library" || album) return;
+    if (!el || tab !== "library" || album || selecting) return;
     const { scrollTop, scrollHeight, clientHeight } = el;
     const atTop = scrollTop < 12;
     const atBottom = scrollTop + clientHeight >= scrollHeight - 12;
     setSegVisible(!atTop && !atBottom);
-
-    // Подзаголовок: вверху — счётчик, при прокрутке — месяц/год верхнего фото
     if (atTop) {
-      setLibSubtitle(objectsCount(visiblePhotos.length));
+      setLibSubtitle(objectsCount(libraryPhotos.length));
     } else {
       const cell = el.clientWidth / libCols;
-      const idx = Math.min(
-        Math.floor(scrollTop / cell) * libCols,
-        visiblePhotos.length - 1
-      );
-      const ph = visiblePhotos[Math.max(0, idx)];
+      const idx = clamp(Math.floor(scrollTop / cell) * libCols, 0, libraryPhotos.length - 1);
+      const ph = libraryPhotos[idx];
       if (ph) setLibSubtitle(monthYearLabel(ph.date));
     }
   };
@@ -107,19 +120,17 @@ export default function App() {
     if (tab !== "library" || album) setSegVisible(false);
   }, [tab, album]);
 
-  // Счётчик объектов как стартовый подзаголовок
   useEffect(() => {
-    setLibSubtitle(objectsCount(visiblePhotos.length));
-  }, [visiblePhotos.length]);
+    setLibSubtitle(objectsCount(libraryPhotos.length));
+  }, [libraryPhotos.length]);
 
-  // Применение темы из настроек
   useEffect(() => {
     const el = document.documentElement;
     if (settings.theme === "system") delete el.dataset.theme;
     else el.dataset.theme = settings.theme;
   }, [settings.theme]);
 
-  // Пинч-зум сетки (как в iOS): два пальца меняют число колонок
+  // Пинч-зум сетки
   useEffect(() => {
     const el = contentRef.current;
     if (!el) return;
@@ -127,7 +138,6 @@ export default function App() {
     let startCols = libColsRef.current;
     const dist = (t: TouchList) =>
       Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
-
     const onStart = (e: TouchEvent) => {
       if (e.touches.length === 2) {
         startDist = dist(e.touches);
@@ -138,9 +148,7 @@ export default function App() {
       if (e.touches.length === 2 && startDist) {
         e.preventDefault();
         const ratio = dist(e.touches) / startDist;
-        // развести пальцы (ratio>1) → меньше колонок (крупнее), свести → больше
-        const delta = Math.round((ratio - 1) * 4);
-        setLibCols(clamp(startCols - delta, 2, 6));
+        setLibCols(clamp(startCols - Math.round((ratio - 1) * 4), 2, 6));
       }
     };
     const onEnd = (e: TouchEvent) => {
@@ -162,31 +170,50 @@ export default function App() {
     setViewerIndex(idx >= 0 ? idx : 0);
   };
 
-  const openCollection = (c: OpenCollection) => {
-    setAlbum({ title: c.title, photos: c.photos, hint: c.emptyHint });
-  };
-
   const createAlbum = (name: string, ids: string[]) => {
-    setAlbums((prev) => [
-      ...prev,
-      { id: `al-${Date.now()}`, title: name, photoIds: ids },
-    ]);
+    setAlbums((prev) => [...prev, { id: `al-${Date.now()}`, title: name, photoIds: ids }]);
     setAddAlbumOpen(false);
   };
 
+  // ===== Выбор фото =====
+  const toggleSelect = (p: Photo) =>
+    setSelected((prev) => {
+      const n = new Set(prev);
+      n.has(p.id) ? n.delete(p.id) : n.add(p.id);
+      return n;
+    });
+  const enterSelection = (p?: Photo) => {
+    setSelecting(true);
+    setSelected(new Set(p ? [p.id] : []));
+    setSegVisible(false);
+  };
+  const exitSelection = () => {
+    setSelecting(false);
+    setSelected(new Set());
+  };
+  const shareSelected = () => {
+    const first = photos.find((p) => selected.has(p.id));
+    if (first) sharePhoto(first).catch(() => {});
+  };
+  const performDelete = async (ids: string[]) => {
+    setPendingDelete(null);
+    haptic("heavy");
+    const idents = ids
+      .map((id) => byId.get(id)?.identifier)
+      .filter(Boolean) as string[];
+    await deleteManyFromDevice(idents);
+    ids.forEach(removePhoto);
+    exitSelection();
+  };
+
   const needPermission = permission === "prompt" || permission === "denied";
-  // Вкладка «Коллекции» прячется влево, когда показан бар Годы/Месяцы/Все
-  const collapseTabs = tab === "library" && !album && segVisible;
+  const collapseTabs = tab === "library" && !album && segVisible && !selecting;
 
   return (
     <div className="phone">
       <div className="screen">
         {needPermission ? (
-          <PermissionScreen
-            state={permission}
-            loading={loading}
-            onRequest={requestAndLoad}
-          />
+          <PermissionScreen state={permission} loading={loading} onRequest={requestAndLoad} />
         ) : (
           <>
             <main className="content" ref={contentRef} onScroll={handleScroll}>
@@ -198,12 +225,19 @@ export default function App() {
                       subtitle={libSubtitle}
                       user={user}
                       onAvatar={() => setAvatarOpen(true)}
+                      selecting={selecting}
+                      selectedCount={selected.size}
+                      onDone={exitSelection}
                     />
                     <PhotoGrid
-                      photos={visiblePhotos}
+                      photos={libraryPhotos}
                       columns={libCols}
                       grouped={settings.gridByDays}
-                      onOpen={(p) => openPhotoIn(visiblePhotos, p)}
+                      selecting={selecting}
+                      selected={selected}
+                      onOpen={(p) => openPhotoIn(libraryPhotos, p)}
+                      onToggleSelect={toggleSelect}
+                      onLongPress={(p) => setContextPhoto(p)}
                     />
                   </>
                 )}
@@ -220,7 +254,9 @@ export default function App() {
                       albums={albums}
                       columns={colCols}
                       onColumns={setColCols}
-                      onOpen={openCollection}
+                      onOpen={(c: OpenCollection) =>
+                        setAlbum({ title: c.title, photos: c.photos, hint: c.emptyHint })
+                      }
                       onCreateAlbum={() => setAddAlbumOpen(true)}
                     />
                   </>
@@ -252,7 +288,7 @@ export default function App() {
               </div>
             </main>
 
-            {tab === "library" && !album && (
+            {tab === "library" && !album && !selecting && (
               <div className={`segmented glass ${segVisible ? "show" : ""}`}>
                 {segments.map((s) => (
                   <button
@@ -266,15 +302,24 @@ export default function App() {
               </div>
             )}
 
-            <BottomBar
-              active={tab}
-              collapsed={collapseTabs}
-              onChange={(t) => {
-                setTab(t);
-                setAlbum(null);
-              }}
-              onSearch={() => setSearchOpen(true)}
-            />
+            {selecting ? (
+              <SelectionBar
+                count={selected.size}
+                onShare={shareSelected}
+                onDelete={() => selected.size && setPendingDelete([...selected])}
+              />
+            ) : (
+              <BottomBar
+                active={tab}
+                collapsed={collapseTabs}
+                filterActive={filterKey !== "all"}
+                onChange={(t) => {
+                  setTab(t);
+                  setAlbum(null);
+                }}
+                onFilter={() => setFilterOpen(true)}
+              />
+            )}
           </>
         )}
 
@@ -293,14 +338,30 @@ export default function App() {
           />
         )}
 
-        {searchOpen && (
-          <SearchScreen
-            photos={visiblePhotos}
-            onOpen={(p) => {
-              setSearchOpen(false);
-              openPhotoIn(visiblePhotos, p);
-            }}
-            onClose={() => setSearchOpen(false)}
+        {filterOpen && (
+          <FilterMenu active={filterKey} onSelect={setFilterKey} onClose={() => setFilterOpen(false)} />
+        )}
+
+        {contextPhoto && (
+          <ContextMenu
+            photo={contextPhoto}
+            onShare={() => sharePhoto(contextPhoto).catch(() => {})}
+            onFavorite={() => toggleFavorite(contextPhoto.id)}
+            onSelect={() => enterSelection(contextPhoto)}
+            onHide={() => toggleHidden(contextPhoto.id)}
+            onDelete={() => setPendingDelete([contextPhoto.id])}
+            onClose={() => setContextPhoto(null)}
+          />
+        )}
+
+        {pendingDelete && (
+          <ConfirmSheet
+            title={pendingDelete.length > 1 ? `Удалить ${pendingDelete.length} фото?` : "Удалить фото?"}
+            message="Будет удалено с устройства и из iCloud."
+            confirmLabel="Удалить"
+            destructive
+            onConfirm={() => performDelete(pendingDelete)}
+            onCancel={() => setPendingDelete(null)}
           />
         )}
 
@@ -339,12 +400,32 @@ function Header({
   subtitle,
   user,
   onAvatar,
+  selecting,
+  selectedCount = 0,
+  onDone,
 }: {
   title: string;
   subtitle?: string;
   user: UserProfile;
   onAvatar: () => void;
+  selecting?: boolean;
+  selectedCount?: number;
+  onDone?: () => void;
 }) {
+  if (selecting) {
+    return (
+      <div className="top-head sticky scrim">
+        <div className="head-titles">
+          <h1 className="big-title">
+            {selectedCount ? `Выбрано: ${selectedCount}` : "Выберите фото"}
+          </h1>
+        </div>
+        <button className="done-btn" onClick={onDone}>
+          Готово
+        </button>
+      </div>
+    );
+  }
   return (
     <div className="top-head sticky scrim">
       <div className="head-titles">

@@ -149,8 +149,8 @@ export function PhotoViewer({
     const dy = e.clientY - start.current.y;
     const dx = e.clientX - start.current.x;
     if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 60) {
-      if (dy < 0) close(); // свайп вверх — закрыть
-      else setShowMeta(true); // свайп вниз — детали
+      if (dy > 0) close(); // свайп вниз — закрыть
+      else setShowMeta(true); // свайп вверх — детали
       axis.current = "none";
       return;
     }
@@ -228,7 +228,7 @@ export function PhotoViewer({
             <div className="slide" key={si}>
               {p && (
                 <img
-                  src={isCurrent ? fullSrc ?? p.thumb : p.thumb}
+                  src={isCurrent ? fullSrc ?? p.thumb : p.full ?? p.thumb}
                   alt={p.caption ?? ""}
                   className="viewer-img"
                   draggable={false}

@@ -24,3 +24,15 @@ export async function deleteFromDevice(identifier?: string): Promise<boolean> {
     return false;
   }
 }
+
+/** Массовое удаление — одно системное подтверждение Apple на все фото. */
+export async function deleteManyFromDevice(identifiers: string[]): Promise<boolean> {
+  const ids = identifiers.filter(Boolean);
+  if (!Capacitor.isNativePlatform() || ids.length === 0) return true;
+  try {
+    const res = await PhotoLibrary.deletePhotos({ identifiers: ids });
+    return !!res.deleted;
+  } catch {
+    return false;
+  }
+}

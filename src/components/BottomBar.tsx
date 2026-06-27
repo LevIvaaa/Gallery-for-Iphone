@@ -1,4 +1,4 @@
-import { PhotoStackIcon, AlbumsIcon, SearchIcon } from "../icons";
+import { PhotoStackIcon, AlbumsIcon, FilterIcon } from "../icons";
 
 export type Tab = "library" | "collections";
 
@@ -10,13 +10,15 @@ const tabs: { key: Tab; label: string; Icon: typeof PhotoStackIcon }[] = [
 export function BottomBar({
   active,
   collapsed,
+  filterActive,
   onChange,
-  onSearch,
+  onFilter,
 }: {
   active: Tab;
   collapsed?: boolean;
+  filterActive?: boolean;
   onChange: (t: Tab) => void;
-  onSearch: () => void;
+  onFilter: () => void;
 }) {
   return (
     <div className={`bottom-bar ${collapsed ? "collapsed" : ""}`}>
@@ -34,8 +36,12 @@ export function BottomBar({
           </button>
         ))}
       </nav>
-      <button className="search-fab glass" onClick={onSearch} aria-label="Поиск">
-        <SearchIcon size={22} />
+      <button
+        className={`search-fab glass ${filterActive ? "active" : ""}`}
+        onClick={onFilter}
+        aria-label="Фильтр"
+      >
+        <FilterIcon size={22} />
       </button>
     </div>
   );
