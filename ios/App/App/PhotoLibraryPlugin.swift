@@ -22,6 +22,38 @@ public class PhotoLibraryPlugin: CAPPlugin, CAPBridgedPlugin {
 
     // ===== Список ассетов (быстро, без изображений) =====
     @objc func getAssets(_ call: CAPPluginCall) {
+        // Сначала убеждаемся, что есть доступ (запрашиваем при необходимости)
+        let handler: (PHAuthorizationStatus) -> Void = { status in
+            let granted: Bool
+            if #available(iOS 14, *) {
+                granted = status == .authorized || status == .limited
+            } else {
+                granted = status == .authorized
+            }
+            if granted {
+                self.fetchAssets(call)
+            } else {
+                call.reject("no-access")
+            }
+        }
+        if #available(iOS 14, *) {
+            let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+            if status == .notDetermined {
+                PHPhotoLibrary.requestAuthorization(for: .readWrite, handler: handler)
+            } else {
+                handler(status)
+            }
+        } else {
+            let status = PHPhotoLibrary.authorizationStatus()
+            if status == .notDetermined {
+                PHPhotoLibrary.requestAuthorization(handler)
+            } else {
+                handler(status)
+            }
+        }
+    }
+
+    private func fetchAssets(_ call: CAPPluginCall) {
         let limit = call.getInt("limit") ?? 0
         let options = PHFetchOptions()
         options.sortDescriptors = [
