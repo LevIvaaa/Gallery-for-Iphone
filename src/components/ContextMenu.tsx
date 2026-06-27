@@ -50,7 +50,7 @@ export function ContextMenu({
 
   return (
     <div className="ctx-backdrop" onClick={onClose}>
-      <div className="ctx-wrap" onClick={(e) => e.stopPropagation()}>
+      <div className="ctx-wrap">
         <img className="ctx-preview" src={photo.full || photo.thumb} alt="" draggable={false} />
         <div className="ctx-menu glass">
           {item("Поделиться", ShareIcon, onShare)}

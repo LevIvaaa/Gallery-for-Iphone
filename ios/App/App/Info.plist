@@ -49,5 +49,7 @@
 	<string>Доступ к медиатеке нужен, чтобы показывать ваши фотографии в приложении, включая снимки из iCloud.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Разрешение нужно, чтобы сохранять изображения в вашу медиатеку.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Face ID используется для доступа к скрытым фотографиям.</string>
 </dict>
 </plist>

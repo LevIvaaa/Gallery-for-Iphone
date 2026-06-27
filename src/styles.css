@@ -2563,3 +2563,10 @@ body {
 .pill-btn.active {
   background: var(--accent);
 }
+
+/* ===== Фикс видимости блока «фильтр+⋯» при выборе (#1) ===== */
+.head-pill {
+  background: rgba(120, 120, 128, 0.32);
+  border: none;
+  box-shadow: none;
+}

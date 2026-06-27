@@ -18,6 +18,7 @@ import { ActionMenu } from "./components/ActionMenu";
 import { AlbumPickerSheet } from "./components/EditSheets";
 import { usePhotoLibrary } from "./hooks/usePhotoLibrary";
 import { deleteManyFromDevice } from "./services/nativeDelete";
+import { verifyBiometric } from "./services/biometric";
 import { sharePhoto } from "./lib/share";
 import { haptic } from "./lib/haptics";
 import { objectsCount, monthYearLabel } from "./lib/format";
@@ -488,15 +489,19 @@ export default function App() {
                       columns={colCols}
                       collapsed={colCollapsed}
                       onToggleCollapse={toggleColCollapse}
-                      onOpen={(c: OpenCollection) =>
+                      onOpen={async (c: OpenCollection) => {
+                        if (c.title === "Скрытые") {
+                          const ok = await verifyBiometric("Доступ к скрытым фото");
+                          if (!ok) return;
+                        }
                         setAlbum({
                           title: c.title,
                           photos: c.photos,
                           hint: c.emptyHint,
                           trash: c.title === "Недавно удалённые",
                           hiddenAlbum: c.title === "Скрытые",
-                        })
-                      }
+                        });
+                      }}
                       onCreateAlbum={() => setAddAlbumOpen(true)}
                     />
                   </>
