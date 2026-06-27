@@ -34,6 +34,7 @@ interface OpenAlbum {
   photos: Photo[];
   hint?: string;
   trash?: boolean;
+  hiddenAlbum?: boolean;
 }
 
 const clamp = (n: number, min: number, max: number) =>
@@ -63,6 +64,7 @@ export default function App() {
     updatePhoto,
     toggleHidden,
     purgePhoto,
+    restorePhoto,
   } = usePhotoLibrary();
 
   const [tab, setTab] = useState<Tab>("library");
@@ -74,7 +76,14 @@ export default function App() {
   const [avatarOpen, setAvatarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [addAlbumOpen, setAddAlbumOpen] = useState(false);
-  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState<Settings>(() => {
+    try {
+      const s = localStorage.getItem("gallery-settings");
+      return s ? { ...DEFAULT_SETTINGS, ...JSON.parse(s) } : DEFAULT_SETTINGS;
+    } catch {
+      return DEFAULT_SETTINGS;
+    }
+  });
   const [segVisible, setSegVisible] = useState(false);
   const [libSubtitle, setLibSubtitle] = useState("");
   const [filterKey, setFilterKey] = useState<FilterKey>("all");
@@ -170,6 +179,15 @@ export default function App() {
     if (settings.theme === "system") delete el.dataset.theme;
     else el.dataset.theme = settings.theme;
   }, [settings.theme]);
+
+  // Сохранение настроек (включая тему) между сессиями
+  useEffect(() => {
+    try {
+      localStorage.setItem("gallery-settings", JSON.stringify(settings));
+    } catch {
+      /* недоступно */
+    }
+  }, [settings]);
 
   // Сохранение аватарки между сессиями
   useEffect(() => {
@@ -295,6 +313,16 @@ export default function App() {
     const first = photos.find((p) => selected.has(p.id));
     if (first) sharePhoto(first).catch(() => {});
   };
+  const restoreSelected = () => {
+    const ids = [...selected];
+    if (album?.trash) ids.forEach(restorePhoto);
+    else if (album?.hiddenAlbum) ids.forEach(toggleHidden);
+    setAlbum((a) =>
+      a ? { ...a, photos: a.photos.filter((p) => !ids.includes(p.id)) } : a
+    );
+    exitSelection();
+  };
+
   const performDelete = async (ids: string[], hard?: boolean) => {
     setPendingDelete(null);
     haptic("heavy");
@@ -364,6 +392,7 @@ export default function App() {
                           photos: c.photos,
                           hint: c.emptyHint,
                           trash: c.title === "Недавно удалённые",
+                          hiddenAlbum: c.title === "Скрытые",
                         })
                       }
                       onCreateAlbum={() => setAddAlbumOpen(true)}
@@ -380,25 +409,9 @@ export default function App() {
                             {selected.size ? `Выбрано: ${selected.size}` : "Выберите фото"}
                           </h1>
                         </div>
-                        <div className="head-acts">
-                          {album.trash && (
-                            <button
-                              className="done-btn danger"
-                              onClick={() =>
-                                album.photos.length &&
-                                setPendingDelete({
-                                  ids: album.photos.map((p) => p.id),
-                                  hard: true,
-                                })
-                              }
-                            >
-                              Удалить всё
-                            </button>
-                          )}
-                          <button className="done-circle" onClick={exitSelection} aria-label="Готово">
-                            <CheckIcon size={20} />
-                          </button>
-                        </div>
+                        <button className="done-circle" onClick={exitSelection} aria-label="Готово">
+                          <CheckIcon size={20} />
+                        </button>
                       </div>
                     ) : (
                       <div className="top-head sticky scrim">
@@ -445,7 +458,9 @@ export default function App() {
             {selecting ? (
               <SelectionBar
                 count={selected.size}
+                mode={album?.trash ? "trash" : album?.hiddenAlbum ? "hidden" : undefined}
                 onShare={shareSelected}
+                onRestore={restoreSelected}
                 onDelete={() =>
                   selected.size &&
                   setPendingDelete({ ids: [...selected], hard: !!album?.trash })
