@@ -5,22 +5,34 @@ import {
   LockIcon,
   TrashIcon,
   HeartIcon,
+  CopyIcon,
+  AlbumsIcon,
+  ClockIcon,
+  MapPinIcon,
 } from "../icons";
 
 export function ContextMenu({
   photo,
   onShare,
-  onSelect,
   onFavorite,
+  onCopy,
+  onSelect,
   onHide,
+  onAddAlbum,
+  onEditDate,
+  onEditGeo,
   onDelete,
   onClose,
 }: {
   photo: Photo;
   onShare: () => void;
-  onSelect: () => void;
   onFavorite: () => void;
+  onCopy: () => void;
+  onSelect: () => void;
   onHide: () => void;
+  onAddAlbum: () => void;
+  onEditDate: () => void;
+  onEditGeo: () => void;
   onDelete: () => void;
   onClose: () => void;
 }) {
@@ -49,8 +61,12 @@ export function ContextMenu({
         <div className="ctx-menu glass">
           {item("Поделиться", ShareIcon, onShare)}
           {item(photo.favorite ? "Убрать из избранного" : "В избранное", HeartIcon, onFavorite)}
+          {item("Скопировать", CopyIcon, onCopy)}
           {item("Выбрать", CheckIcon, onSelect)}
           {item(photo.hidden ? "Показать" : "Скрыть", LockIcon, onHide)}
+          {item("Добавить в альбом", AlbumsIcon, onAddAlbum)}
+          {item("Изменить дату и время", ClockIcon, onEditDate)}
+          {item("Изменить геопозицию", MapPinIcon, onEditGeo)}
           {item("Удалить", TrashIcon, onDelete, true)}
         </div>
       </div>

@@ -14,12 +14,14 @@ import { CollectionsMenu } from "./components/CollectionsMenu";
 import { ContextMenu } from "./components/ContextMenu";
 import { SelectionBar } from "./components/SelectionBar";
 import { ConfirmSheet } from "./components/ConfirmSheet";
+import { ActionMenu } from "./components/ActionMenu";
+import { DateEditSheet, GeoEditSheet, AlbumPickerSheet } from "./components/EditSheets";
 import { usePhotoLibrary } from "./hooks/usePhotoLibrary";
 import { deleteManyFromDevice } from "./services/nativeDelete";
 import { sharePhoto } from "./lib/share";
 import { haptic } from "./lib/haptics";
 import { objectsCount, monthYearLabel } from "./lib/format";
-import { LockIcon, CheckIcon, FilterIcon, DotsIcon } from "./icons";
+import { LockIcon, CheckIcon, FilterIcon, DotsIcon, HeartIcon, AlbumsIcon } from "./icons";
 import type { Photo, UserAlbum } from "./types";
 
 const user: UserProfile = { name: "Lev Iva", subtitle: "Apple ID · iCloud+" };
@@ -98,6 +100,13 @@ export default function App() {
   const [pendingDelete, setPendingDelete] = useState<{
     ids: string[];
     hard?: boolean;
+  } | null>(null);
+  const [editDatePhoto, setEditDatePhoto] = useState<Photo | null>(null);
+  const [editGeoPhoto, setEditGeoPhoto] = useState<Photo | null>(null);
+  const [albumPickerFor, setAlbumPickerFor] = useState<string[] | null>(null);
+  const [pendingConfirm, setPendingConfirm] = useState<{
+    kind: "hide" | "unhide" | "restore";
+    ids: string[];
   } | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | undefined>(() => {
     try {
@@ -305,10 +314,18 @@ export default function App() {
       return n;
     });
 
-  const hideSelected = () => {
-    [...selected].forEach(toggleHidden);
+  const favoriteSelected = () => {
+    [...selected].forEach(toggleFavorite);
     setSelectMenuOpen(false);
     exitSelection();
+  };
+  const hideSelected = () => {
+    setSelectMenuOpen(false);
+    setPendingConfirm({ kind: "hide", ids: [...selected] });
+  };
+  const addAlbumSelected = () => {
+    setSelectMenuOpen(false);
+    setAlbumPickerFor([...selected]);
   };
 
   // ===== Выбор фото =====
@@ -331,14 +348,67 @@ export default function App() {
     const first = photos.find((p) => selected.has(p.id));
     if (first) sharePhoto(first).catch(() => {});
   };
-  const restoreSelected = () => {
-    const ids = [...selected];
-    if (album?.trash) ids.forEach(restorePhoto);
-    else if (album?.hiddenAlbum) ids.forEach(toggleHidden);
+  const restoreSelected = () =>
+    setPendingConfirm({
+      kind: album?.trash ? "restore" : "unhide",
+      ids: [...selected],
+    });
+
+  const doConfirmAction = () => {
+    if (!pendingConfirm) return;
+    const { kind, ids } = pendingConfirm;
+    if (kind === "restore") ids.forEach(restorePhoto);
+    else ids.forEach(toggleHidden); // hide / unhide
     setAlbum((a) =>
       a ? { ...a, photos: a.photos.filter((p) => !ids.includes(p.id)) } : a
     );
+    setPendingConfirm(null);
     exitSelection();
+  };
+
+  const addToAlbumIds = (albumId: string, ids: string[]) =>
+    setAlbums((prev) =>
+      prev.map((a) =>
+        a.id === albumId
+          ? { ...a, photoIds: Array.from(new Set([...a.photoIds, ...ids])) }
+          : a
+      )
+    );
+
+  const photoAction = (kind: string, p: Photo) => {
+    switch (kind) {
+      case "share":
+        sharePhoto(p).catch(() => {});
+        break;
+      case "favorite":
+        toggleFavorite(p.id);
+        break;
+      case "copy":
+        try {
+          navigator.clipboard?.writeText(p.full || p.thumb);
+        } catch {
+          /* clipboard unavailable */
+        }
+        break;
+      case "hide":
+        setPendingConfirm({ kind: p.hidden ? "unhide" : "hide", ids: [p.id] });
+        break;
+      case "album":
+        setAlbumPickerFor([p.id]);
+        break;
+      case "date":
+        setEditDatePhoto(p);
+        break;
+      case "geo":
+        setEditGeoPhoto(p);
+        break;
+      case "select":
+        enterSelection(p);
+        break;
+      case "delete":
+        setPendingDelete({ ids: [p.id], hard: !!p.deleted });
+        break;
+    }
   };
 
   const performDelete = async (ids: string[], hard?: boolean) => {
@@ -528,7 +598,7 @@ export default function App() {
             onDelete={removePhoto}
             onSetCity={setCity}
             onUpdatePhoto={updatePhoto}
-            onToggleHidden={toggleHidden}
+            onAction={photoAction}
           />
         )}
 
@@ -547,26 +617,80 @@ export default function App() {
         )}
 
         {selectMenuOpen && (
-          <div className="popover-backdrop" onClick={() => setSelectMenuOpen(false)}>
-            <div className="popover glass" onClick={(e) => e.stopPropagation()}>
-              <button className="popover-row" onClick={hideSelected}>
-                <span className="popover-label">Скрыть</span>
-                <LockIcon size={18} />
-              </button>
-            </div>
-          </div>
+          <ActionMenu
+            items={[
+              { key: "favorite", label: "В избранное", icon: <HeartIcon size={20} /> },
+              { key: "hide", label: "Скрыть", icon: <LockIcon size={20} /> },
+              { key: "album", label: "Добавить в альбом", icon: <AlbumsIcon size={20} /> },
+            ]}
+            onAction={(k) => {
+              if (k === "favorite") favoriteSelected();
+              else if (k === "hide") hideSelected();
+              else if (k === "album") addAlbumSelected();
+            }}
+            onClose={() => setSelectMenuOpen(false)}
+          />
+        )}
+
+        {editDatePhoto && (
+          <DateEditSheet
+            photo={editDatePhoto}
+            onSave={(d) => updatePhoto(editDatePhoto.id, { date: d })}
+            onClose={() => setEditDatePhoto(null)}
+          />
+        )}
+        {editGeoPhoto && (
+          <GeoEditSheet
+            photo={editGeoPhoto}
+            onSave={(c) => setCity(editGeoPhoto.id, c)}
+            onClose={() => setEditGeoPhoto(null)}
+          />
+        )}
+        {albumPickerFor && (
+          <AlbumPickerSheet
+            albums={albums}
+            onPick={(id) => addToAlbumIds(id, albumPickerFor)}
+            onCreate={() => setAddAlbumOpen(true)}
+            onClose={() => setAlbumPickerFor(null)}
+          />
+        )}
+        {pendingConfirm && (
+          <ConfirmSheet
+            title={
+              pendingConfirm.kind === "restore"
+                ? pendingConfirm.ids.length > 1
+                  ? `Восстановить ${pendingConfirm.ids.length} фото?`
+                  : "Восстановить фото?"
+                : pendingConfirm.kind === "unhide"
+                  ? "Убрать из скрытых?"
+                  : pendingConfirm.ids.length > 1
+                    ? `Скрыть ${pendingConfirm.ids.length} фото?`
+                    : "Скрыть фото?"
+            }
+            confirmLabel={
+              pendingConfirm.kind === "restore"
+                ? "Восстановить"
+                : pendingConfirm.kind === "unhide"
+                  ? "Показать"
+                  : "Скрыть"
+            }
+            onConfirm={doConfirmAction}
+            onCancel={() => setPendingConfirm(null)}
+          />
         )}
 
         {contextPhoto && (
           <ContextMenu
             photo={contextPhoto}
-            onShare={() => sharePhoto(contextPhoto).catch(() => {})}
-            onFavorite={() => toggleFavorite(contextPhoto.id)}
-            onSelect={() => enterSelection(contextPhoto)}
-            onHide={() => toggleHidden(contextPhoto.id)}
-            onDelete={() =>
-              setPendingDelete({ ids: [contextPhoto.id], hard: !!contextPhoto.deleted })
-            }
+            onShare={() => photoAction("share", contextPhoto)}
+            onFavorite={() => photoAction("favorite", contextPhoto)}
+            onCopy={() => photoAction("copy", contextPhoto)}
+            onSelect={() => photoAction("select", contextPhoto)}
+            onHide={() => photoAction("hide", contextPhoto)}
+            onAddAlbum={() => photoAction("album", contextPhoto)}
+            onEditDate={() => photoAction("date", contextPhoto)}
+            onEditGeo={() => photoAction("geo", contextPhoto)}
+            onDelete={() => photoAction("delete", contextPhoto)}
             onClose={() => setContextPhoto(null)}
           />
         )}
@@ -697,6 +821,7 @@ function Header({
           </h1>
         </div>
         <div className="head-acts">
+          {action}
           {onSelectMenu && (
             <button className="head-circle" onClick={onSelectMenu} aria-label="Ещё">
               <DotsIcon size={20} />

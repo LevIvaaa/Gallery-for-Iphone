@@ -266,6 +266,13 @@ export const ChevronDownIcon = ({ size = 24, className }: IconProps) => (
   </svg>
 );
 
+export const CopyIcon = ({ size = 24, className }: IconProps) => (
+  <svg {...base(size)} className={className}>
+    <rect x="8" y="8" width="12" height="12" rx="2.5" stroke="currentColor" strokeWidth="1.8" />
+    <path d="M16 8V6a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2h2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+  </svg>
+);
+
 export const EyeIcon = ({ size = 24, className }: IconProps) => (
   <svg {...base(size)} className={className}>
     <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />

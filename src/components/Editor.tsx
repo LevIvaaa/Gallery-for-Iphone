@@ -17,6 +17,7 @@ import {
   FlipHIcon,
   SparklesIcon,
   CheckIcon,
+  ArrowLeftIcon,
 } from "../icons";
 
 type Tab = "adjust" | "filters" | "crop";
@@ -298,8 +299,8 @@ export function Editor({
   return (
     <div className="editor">
       <header className="editor-top">
-        <button className="overlay-link" onClick={onCancel}>
-          Отмена
+        <button className="etool" onClick={onCancel} aria-label="Назад">
+          <ArrowLeftIcon size={22} />
         </button>
         <div className="editor-top-tools">
           <button className="etool" onClick={undo} disabled={hi === 0}>
@@ -312,8 +313,8 @@ export function Editor({
             <MarkupIcon size={22} />
           </button>
         </div>
-        <button className="overlay-link strong" onClick={save}>
-          Готово
+        <button className="etool primary" onClick={save} aria-label="Готово">
+          <CheckIcon size={22} />
         </button>
       </header>
 

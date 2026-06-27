@@ -46,8 +46,8 @@ body,
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
-    system-ui, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text",
+    "SF Pro Display", "Inter", "Segoe UI", system-ui, sans-serif;
   color: var(--text);
   background: #0b0b0d;
   display: flex;
@@ -2456,3 +2456,83 @@ body {
   color: var(--text);
   white-space: nowrap;
 }
+
+/* ===== Редактор: кнопка-галочка ===== */
+.etool.primary { background: var(--accent); color: #fff; }
+
+/* ===== Просмотр: раздельный нижний ряд ===== */
+.viewer-bottom-row {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: calc(14px + var(--safe-bottom));
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.vfab {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+  border: none;
+  cursor: pointer;
+  flex: none;
+}
+.vfab.danger { color: var(--danger); }
+.vcenter {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border-radius: 28px;
+}
+
+/* ===== Мини-шиты (дата/гео) ===== */
+.edit-mini {
+  width: calc(100% - 24px);
+  margin-bottom: calc(16px + var(--safe-bottom));
+  border-radius: 22px;
+  padding: 8px 16px 18px;
+  animation: sheet-up 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.mini-title {
+  font-size: 17px;
+  font-weight: 700;
+  text-align: center;
+  padding: 6px 0 12px;
+}
+.mini-input {
+  width: 100%;
+  padding: 13px 14px;
+  border-radius: 14px;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-size: 16px;
+}
+.mini-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+.mini-btn {
+  flex: 1;
+  padding: 13px;
+  border: none;
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.mini-btn.primary { background: var(--accent); color: #fff; }
+
+/* опасный пункт в поповере */
+.popover-row.danger { color: var(--danger); }

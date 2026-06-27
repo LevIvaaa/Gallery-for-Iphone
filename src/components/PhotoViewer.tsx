@@ -9,7 +9,20 @@ import { deleteFromDevice } from "../services/nativeDelete";
 import { MetadataSheet } from "./MetadataSheet";
 import { Editor } from "./Editor";
 import { ConfirmSheet } from "./ConfirmSheet";
-import { ArrowLeftIcon, AdjustIcon, ShareIcon, HeartIcon, TrashIcon } from "../icons";
+import { ActionMenu } from "./ActionMenu";
+import {
+  ArrowLeftIcon,
+  AdjustIcon,
+  ShareIcon,
+  HeartIcon,
+  TrashIcon,
+  DotsIcon,
+  CopyIcon,
+  LockIcon,
+  AlbumsIcon,
+  ClockIcon,
+  MapPinIcon,
+} from "../icons";
 
 export function PhotoViewer({
   photos,
@@ -21,7 +34,7 @@ export function PhotoViewer({
   onDelete,
   onSetCity,
   onUpdatePhoto,
-  onToggleHidden,
+  onAction,
 }: {
   photos: Photo[];
   index: number;
@@ -32,14 +45,15 @@ export function PhotoViewer({
   onDelete: (id: string) => void;
   onSetCity: (id: string, city: string) => void;
   onUpdatePhoto: (id: string, patch: Partial<Photo>) => void;
-  onToggleHidden: (id: string) => void;
+  onAction: (kind: string, photo: Photo) => void;
 }) {
   const photo = photos[index];
   const [fullscreen, setFullscreen] = useState(false);
   const [fullSrc, setFullSrc] = useState<string | null>(photo.full);
   const [showMeta, setShowMeta] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
-  const [confirm, setConfirm] = useState<null | "delete" | "hide">(null);
+  const [confirm, setConfirm] = useState<null | "delete">(null);
+  const [showMenu, setShowMenu] = useState(false);
   const [closing, setClosing] = useState(false);
 
   const [dragX, setDragX] = useState(0);
@@ -185,11 +199,17 @@ export function PhotoViewer({
     onDelete(id);
     if (isLast) onClose();
   };
-  const doHide = () => {
-    setConfirm(null);
-    haptic("medium");
-    onToggleHidden(photo.id);
-  };
+  const menuItems = [
+    { key: "copy", label: "Скопировать", icon: <CopyIcon size={20} /> },
+    {
+      key: "hide",
+      label: photo.hidden ? "Показать" : "Скрыть",
+      icon: <LockIcon size={20} />,
+    },
+    { key: "album", label: "Добавить в альбом", icon: <AlbumsIcon size={20} /> },
+    { key: "date", label: "Изменить дату и время", icon: <ClockIcon size={20} /> },
+    { key: "geo", label: "Изменить геопозицию", icon: <MapPinIcon size={20} /> },
+  ];
 
   const slides = [index - 1, index, index + 1];
 
@@ -204,7 +224,9 @@ export function PhotoViewer({
             <strong>{detailTitle(photo)}</strong>
             <small>{formatTime(photo.date)}</small>
           </div>
-          <div className="viewer-top-spacer" />
+          <button className="viewer-back glass" onClick={() => setShowMenu(true)} aria-label="Ещё">
+            <DotsIcon size={22} />
+          </button>
         </header>
       )}
 
@@ -241,22 +263,24 @@ export function PhotoViewer({
       </div>
 
       {!fullscreen && (
-        <footer className="viewer-bottom glass">
-          <button className="vbtn" onClick={() => setShowEditor(true)} aria-label="Редактировать">
-            <AdjustIcon size={22} />
+        <footer className="viewer-bottom-row">
+          <button className="vfab glass" onClick={handleShare} aria-label="Поделиться">
+            <ShareIcon size={22} />
           </button>
-          <button className="vbtn" onClick={handleShare} aria-label="Поделиться">
-            <ShareIcon size={21} />
-          </button>
-          <button
-            className={`vbtn ${photo.favorite ? "active" : ""}`}
-            onClick={handleFavorite}
-            aria-label="В избранное"
-          >
-            <HeartIcon size={21} filled={photo.favorite} />
-          </button>
-          <button className="vbtn danger" onClick={() => setConfirm("delete")} aria-label="Удалить">
-            <TrashIcon size={21} />
+          <div className="vcenter glass">
+            <button className="vbtn" onClick={() => setShowEditor(true)} aria-label="Редактировать">
+              <AdjustIcon size={22} />
+            </button>
+            <button
+              className={`vbtn ${photo.favorite ? "active" : ""}`}
+              onClick={handleFavorite}
+              aria-label="В избранное"
+            >
+              <HeartIcon size={22} filled={photo.favorite} />
+            </button>
+          </div>
+          <button className="vfab glass danger" onClick={() => setConfirm("delete")} aria-label="Удалить">
+            <TrashIcon size={22} />
           </button>
         </footer>
       )}
@@ -268,7 +292,7 @@ export function PhotoViewer({
           showMaps={showMaps}
           onToggleHidden={() => {
             setShowMeta(false);
-            setConfirm("hide");
+            onAction("hide", photo);
           }}
           onClose={() => setShowMeta(false)}
         />
@@ -293,13 +317,11 @@ export function PhotoViewer({
           onCancel={() => setConfirm(null)}
         />
       )}
-      {confirm === "hide" && (
-        <ConfirmSheet
-          title={photo.hidden ? "Показать фото?" : "Скрыть фото?"}
-          message={photo.hidden ? undefined : "Фото будет скрыто из медиатеки."}
-          confirmLabel={photo.hidden ? "Показать" : "Скрыть"}
-          onConfirm={doHide}
-          onCancel={() => setConfirm(null)}
+      {showMenu && (
+        <ActionMenu
+          items={menuItems}
+          onAction={(kind) => onAction(kind, photo)}
+          onClose={() => setShowMenu(false)}
         />
       )}
     </div>
