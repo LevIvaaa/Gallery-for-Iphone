@@ -56,6 +56,12 @@ export function usePhotoLibrary() {
     );
   }, []);
 
+  const toggleHidden = useCallback((id: string) => {
+    setPhotos((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, hidden: !p.hidden } : p))
+    );
+  }, []);
+
   return {
     permission,
     photos,
@@ -65,5 +71,6 @@ export function usePhotoLibrary() {
     removePhoto,
     setCity,
     updatePhoto,
+    toggleHidden,
   };
 }

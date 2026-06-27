@@ -40,6 +40,7 @@ export default function App() {
     removePhoto,
     setCity,
     updatePhoto,
+    toggleHidden,
   } = usePhotoLibrary();
 
   const [tab, setTab] = useState<Tab>("library");
@@ -55,7 +56,9 @@ export default function App() {
 
   const contentRef = useRef<HTMLElement>(null);
   const columns = segments.find((s) => s.key === seg)?.cols ?? 3;
-  const viewerList = album ? album.photos : photos;
+  // Скрытые фото не показываем в медиатеке/поиске (видны только в «Скрытые»)
+  const visiblePhotos = photos.filter((p) => !p.hidden);
+  const viewerList = album ? album.photos : visiblePhotos;
 
   useEffect(() => {
     if (viewerIndex === null) return;
@@ -104,9 +107,9 @@ export default function App() {
                     onAvatar={() => setAvatarOpen(true)}
                   />
                   <PhotoGrid
-                    photos={photos}
+                    photos={visiblePhotos}
                     columns={columns}
-                    onOpen={(p) => openPhotoIn(photos, p)}
+                    onOpen={(p) => openPhotoIn(visiblePhotos, p)}
                   />
                 </>
               )}
@@ -193,15 +196,16 @@ export default function App() {
             onDelete={removePhoto}
             onSetCity={setCity}
             onUpdatePhoto={updatePhoto}
+            onToggleHidden={toggleHidden}
           />
         )}
 
         {searchOpen && (
           <SearchScreen
-            photos={photos}
+            photos={visiblePhotos}
             onOpen={(p) => {
               setSearchOpen(false);
-              openPhotoIn(photos, p);
+              openPhotoIn(visiblePhotos, p);
             }}
             onClose={() => setSearchOpen(false)}
           />

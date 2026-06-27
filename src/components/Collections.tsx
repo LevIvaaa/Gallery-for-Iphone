@@ -46,22 +46,23 @@ export function Collections({
     [photos]
   );
 
-  const favorites = photos.filter((p) => p.favorite);
-  const recentSaved = [...photos].sort(
+  const visible = photos.filter((p) => !p.hidden);
+  const favorites = visible.filter((p) => p.favorite);
+  const recentSaved = [...visible].sort(
     (a, b) => (b.addedDate?.getTime() ?? 0) - (a.addedDate?.getTime() ?? 0)
   );
-  const screenshots = kindCount(photos, "screenshot");
-  const screenrecs = kindCount(photos, "screenrec");
-  const videos = kindCount(photos, "video");
-  const live = kindCount(photos, "live");
-  const selfies = kindCount(photos, "selfie");
-  const trips = photos.filter((p) => p.city);
+  const screenshots = kindCount(visible, "screenshot");
+  const screenrecs = kindCount(visible, "screenrec");
+  const videos = kindCount(visible, "video");
+  const live = kindCount(visible, "live");
+  const selfies = kindCount(visible, "selfie");
+  const trips = visible.filter((p) => p.city);
   const hidden = photos.filter((p) => p.hidden);
 
   const cities = useMemo(() => {
     const m = new Map<string, Photo[]>();
     for (const p of photos) {
-      if (!p.city) continue;
+      if (!p.city || p.hidden) continue;
       const a = m.get(p.city) ?? [];
       a.push(p);
       m.set(p.city, a);

@@ -8,6 +8,7 @@ import {
   EraserIcon,
   ExpandIcon,
   CloseIcon,
+  LockIcon,
 } from "../icons";
 
 interface EditAction {
@@ -36,10 +37,20 @@ const ai: EditAction[] = [
 export function EditMenu({
   onClose,
   onAction,
+  hidden,
 }: {
   onClose: () => void;
   onAction: (key: string, label: string) => void;
+  hidden?: boolean;
 }) {
+  const basicAll: EditAction[] = [
+    ...basic,
+    {
+      key: "hide",
+      label: hidden ? "Показать" : "Скрыть",
+      Icon: LockIcon,
+    },
+  ];
   const render = (a: EditAction) => (
     <button
       key={a.key}
@@ -64,7 +75,7 @@ export function EditMenu({
           </button>
         </div>
 
-        <div className="edit-grid">{basic.map(render)}</div>
+        <div className="edit-grid">{basicAll.map(render)}</div>
 
         <div className="edit-section-title">
           <SparklesIcon size={15} /> Искусственный интеллект

@@ -7,6 +7,7 @@ import { haptic } from "../lib/haptics";
 import { sharePhoto } from "../lib/share";
 import { autoEnhance, denoise } from "../lib/imageEdit";
 import { removeBackground } from "../services/ai";
+import { deleteFromDevice } from "../services/nativeDelete";
 import { MetadataSheet } from "./MetadataSheet";
 import { EditMenu } from "./EditMenu";
 import { Editor } from "./Editor";
@@ -30,6 +31,7 @@ export function PhotoViewer({
   onDelete,
   onSetCity,
   onUpdatePhoto,
+  onToggleHidden,
 }: {
   photos: Photo[];
   index: number;
@@ -39,6 +41,7 @@ export function PhotoViewer({
   onDelete: (id: string) => void;
   onSetCity: (id: string, city: string) => void;
   onUpdatePhoto: (id: string, patch: Partial<Photo>) => void;
+  onToggleHidden: (id: string) => void;
 }) {
   const photo = photos[index];
   const [fullscreen, setFullscreen] = useState(false);
@@ -156,9 +159,13 @@ export function PhotoViewer({
     onToggleFavorite(photo.id);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     haptic("heavy");
     const id = photo.id;
+    const ident = photo.identifier;
+    // На устройстве — реальное удаление с системным подтверждением Apple
+    const ok = await deleteFromDevice(ident);
+    if (!ok) return; // пользователь нажал «Запретить»
     const isLast = photos.length <= 1;
     if (index >= photos.length - 1 && index > 0) onIndexChange(index - 1);
     onDelete(id);
@@ -202,6 +209,12 @@ export function PhotoViewer({
     setShowEdit(false);
     if (key.startsWith("ai-")) {
       runAI(key, label);
+      return;
+    }
+    if (key === "hide") {
+      haptic("light");
+      onToggleHidden(photo.id);
+      flash(photo.hidden ? "Показано" : "Скрыто");
       return;
     }
     const t = editTabs[key];
@@ -283,7 +296,11 @@ export function PhotoViewer({
         <MetadataSheet photo={photo} onClose={() => setShowMeta(false)} />
       )}
       {showEdit && (
-        <EditMenu onClose={() => setShowEdit(false)} onAction={handleEditAction} />
+        <EditMenu
+          onClose={() => setShowEdit(false)}
+          onAction={handleEditAction}
+          hidden={photo.hidden}
+        />
       )}
       {editorTab && (
         <Editor
