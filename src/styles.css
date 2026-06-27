@@ -2313,3 +2313,13 @@ body {
 .bottom-bar.filter-only {
   justify-content: flex-end;
 }
+
+/* ===== Действия в шапке (выбор) ===== */
+.head-acts {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.done-btn.danger {
+  color: var(--danger);
+}

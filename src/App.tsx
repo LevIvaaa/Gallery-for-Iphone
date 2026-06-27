@@ -18,7 +18,7 @@ import { deleteManyFromDevice } from "./services/nativeDelete";
 import { sharePhoto } from "./lib/share";
 import { haptic } from "./lib/haptics";
 import { objectsCount, monthYearLabel } from "./lib/format";
-import { ArrowLeftIcon, LockIcon } from "./icons";
+import { LockIcon } from "./icons";
 import type { Photo, UserAlbum } from "./types";
 
 const user: UserProfile = { name: "Lev Iva", subtitle: "Apple ID · iCloud+" };
@@ -33,6 +33,7 @@ interface OpenAlbum {
   title: string;
   photos: Photo[];
   hint?: string;
+  trash?: boolean;
 }
 
 const clamp = (n: number, min: number, max: number) =>
@@ -61,6 +62,7 @@ export default function App() {
     setCity,
     updatePhoto,
     toggleHidden,
+    purgePhoto,
   } = usePhotoLibrary();
 
   const [tab, setTab] = useState<Tab>("library");
@@ -80,7 +82,10 @@ export default function App() {
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [contextPhoto, setContextPhoto] = useState<Photo | null>(null);
-  const [pendingDelete, setPendingDelete] = useState<string[] | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<{
+    ids: string[];
+    hard?: boolean;
+  } | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | undefined>(() => {
     try {
       return localStorage.getItem("gallery-avatar") || undefined;
@@ -96,6 +101,8 @@ export default function App() {
   const scrolledRef = useRef(false);
   const libColsRef = useRef(libCols);
   libColsRef.current = libCols;
+  const albumRef = useRef(album);
+  albumRef.current = album;
 
   const profile: UserProfile = { ...user, avatar: avatarUrl };
 
@@ -190,6 +197,39 @@ export default function App() {
     }
   }, [tab, album, selecting, libraryPhotos.length]);
 
+  // Назад из подраздела: свайп от левого края (как жест iPhone) + Esc
+  useEffect(() => {
+    const el = contentRef.current;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && albumRef.current) setAlbum(null);
+    };
+    window.addEventListener("keydown", onKey);
+    let sx = 0;
+    let sy = 0;
+    let edge = false;
+    const ts = (e: TouchEvent) => {
+      const t = e.touches[0];
+      sx = t.clientX;
+      sy = t.clientY;
+      edge = sx < 30 && !!albumRef.current;
+    };
+    const tm = (e: TouchEvent) => {
+      if (!edge) return;
+      const t = e.touches[0];
+      if (t.clientX - sx > 70 && Math.abs(t.clientY - sy) < 60) {
+        edge = false;
+        setAlbum(null);
+      }
+    };
+    el?.addEventListener("touchstart", ts, { passive: true });
+    el?.addEventListener("touchmove", tm, { passive: true });
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      el?.removeEventListener("touchstart", ts);
+      el?.removeEventListener("touchmove", tm);
+    };
+  }, []);
+
   // Пинч-зум сетки
   useEffect(() => {
     const el = contentRef.current;
@@ -255,14 +295,18 @@ export default function App() {
     const first = photos.find((p) => selected.has(p.id));
     if (first) sharePhoto(first).catch(() => {});
   };
-  const performDelete = async (ids: string[]) => {
+  const performDelete = async (ids: string[], hard?: boolean) => {
     setPendingDelete(null);
     haptic("heavy");
     const idents = ids
       .map((id) => byId.get(id)?.identifier)
       .filter(Boolean) as string[];
     await deleteManyFromDevice(idents);
-    ids.forEach(removePhoto);
+    ids.forEach((id) => (hard ? purgePhoto(id) : removePhoto(id)));
+    // обновляем открытый альбом (снимок), чтобы фото исчезли сразу
+    setAlbum((a) =>
+      a ? { ...a, photos: a.photos.filter((p) => !ids.includes(p.id)) } : a
+    );
     exitSelection();
   };
 
@@ -315,7 +359,12 @@ export default function App() {
                       columns={colCols}
                       onColumns={setColCols}
                       onOpen={(c: OpenCollection) =>
-                        setAlbum({ title: c.title, photos: c.photos, hint: c.emptyHint })
+                        setAlbum({
+                          title: c.title,
+                          photos: c.photos,
+                          hint: c.emptyHint,
+                          trash: c.title === "Недавно удалённые",
+                        })
                       }
                       onCreateAlbum={() => setAddAlbumOpen(true)}
                     />
@@ -331,16 +380,31 @@ export default function App() {
                             {selected.size ? `Выбрано: ${selected.size}` : "Выберите фото"}
                           </h1>
                         </div>
-                        <button className="done-btn" onClick={exitSelection}>
-                          Готово
-                        </button>
+                        <div className="head-acts">
+                          {album.trash && (
+                            <button
+                              className="done-btn danger"
+                              onClick={() =>
+                                album.photos.length &&
+                                setPendingDelete({
+                                  ids: album.photos.map((p) => p.id),
+                                  hard: true,
+                                })
+                              }
+                            >
+                              Удалить всё
+                            </button>
+                          )}
+                          <button className="done-btn" onClick={exitSelection}>
+                            Готово
+                          </button>
+                        </div>
                       </div>
                     ) : (
-                      <div className="top-head sticky album-sticky scrim">
-                        <button className="head-back" onClick={() => setAlbum(null)} aria-label="Назад">
-                          <ArrowLeftIcon size={22} />
-                        </button>
-                        <h1 className="big-title small">{album.title}</h1>
+                      <div className="top-head sticky scrim">
+                        <div className="head-titles">
+                          <h1 className="big-title">{album.title}</h1>
+                        </div>
                       </div>
                     )}
                     {album.photos.length ? (
@@ -382,7 +446,10 @@ export default function App() {
               <SelectionBar
                 count={selected.size}
                 onShare={shareSelected}
-                onDelete={() => selected.size && setPendingDelete([...selected])}
+                onDelete={() =>
+                  selected.size &&
+                  setPendingDelete({ ids: [...selected], hard: !!album?.trash })
+                }
               />
             ) : (
               <BottomBar
@@ -426,18 +493,28 @@ export default function App() {
             onFavorite={() => toggleFavorite(contextPhoto.id)}
             onSelect={() => enterSelection(contextPhoto)}
             onHide={() => toggleHidden(contextPhoto.id)}
-            onDelete={() => setPendingDelete([contextPhoto.id])}
+            onDelete={() =>
+              setPendingDelete({ ids: [contextPhoto.id], hard: !!contextPhoto.deleted })
+            }
             onClose={() => setContextPhoto(null)}
           />
         )}
 
         {pendingDelete && (
           <ConfirmSheet
-            title={pendingDelete.length > 1 ? `Удалить ${pendingDelete.length} фото?` : "Удалить фото?"}
-            message="Будет удалено с устройства и из iCloud."
-            confirmLabel="Удалить"
+            title={
+              pendingDelete.ids.length > 1
+                ? `Удалить ${pendingDelete.ids.length} фото?`
+                : "Удалить фото?"
+            }
+            message={
+              pendingDelete.hard
+                ? "Фото будет удалено навсегда."
+                : "Будет удалено с устройства и из iCloud."
+            }
+            confirmLabel={pendingDelete.hard ? "Удалить навсегда" : "Удалить"}
             destructive
-            onConfirm={() => performDelete(pendingDelete)}
+            onConfirm={() => performDelete(pendingDelete.ids, pendingDelete.hard)}
             onCancel={() => setPendingDelete(null)}
           />
         )}

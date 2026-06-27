@@ -57,6 +57,11 @@ export function usePhotoLibrary() {
     );
   }, []);
 
+  // Окончательное удаление (из «Недавно удалённых»)
+  const purgePhoto = useCallback((id: string) => {
+    setPhotos((prev) => prev.filter((p) => p.id !== id));
+  }, []);
+
   const setCity = useCallback((id: string, city: string) => {
     setPhotos((prev) =>
       prev.map((p) => (p.id === id ? { ...p, city } : p))
@@ -86,5 +91,6 @@ export function usePhotoLibrary() {
     updatePhoto,
     toggleHidden,
     restorePhoto,
+    purgePhoto,
   };
 }
