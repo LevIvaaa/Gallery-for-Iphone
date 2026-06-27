@@ -73,3 +73,106 @@ export const TrashIcon = ({ size = 24, className }: IconProps) => (
     <path d="M4 7h16M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m-9 0l1 13a1 1 0 001 1h6a1 1 0 001-1l1-13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
+
+export const ArrowLeftIcon = ({ size = 24, className }: IconProps) => (
+  <svg {...base(size)} className={className}>
+    <path d="M14 6l-6 6 6 6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+export const DotsIcon = ({ size = 24, className }: IconProps) => (
+  <svg {...base(size)} className={className}>
+    <circle cx="6" cy="12" r="1.7" fill="currentColor" />
+    <circle cx="12" cy="12" r="1.7" fill="currentColor" />
+    <circle cx="18" cy="12" r="1.7" fill="currentColor" />
+  </svg>
+);
+
+export const GearIcon = ({ size = 24, className }: IconProps) => (
+  <svg {...base(size)} className={className}>
+    <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.8" />
+    <path d="M12 2.5l1.4 2.6 2.9-.6.6 2.9 2.6 1.4-1.5 2.5 1.5 2.5-2.6 1.4-.6 2.9-2.9-.6L12 21.5l-1.4-2.6-2.9.6-.6-2.9L4.5 15 6 12.5 4.5 10l2.6-1.4.6-2.9 2.9.6L12 2.5z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+  </svg>
+);
+
+export const PersonIcon = ({ size = 24, className }: IconProps) => (
+  <svg {...base(size)} className={className}>
+    <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.8" />
+    <path d="M4 20c0-4 3.6-6 8-6s8 2 8 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+  </svg>
+);
+
+export const MapPinIcon = ({ size = 24, className }: IconProps) => (
+  <svg {...base(size)} className={className}>
+    <path d="M12 21s7-5.6 7-11a7 7 0 10-14 0c0 5.4 7 11 7 11z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+    <circle cx="12" cy="10" r="2.4" stroke="currentColor" strokeWidth="1.8" />
+  </svg>
+);
+
+export const ChevronRightIcon = ({ size = 24, className }: IconProps) => (
+  <svg {...base(size)} className={className}>
+    <path d="M9 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+export const CloseIcon = ({ size = 24, className }: IconProps) => (
+  <svg {...base(size)} className={className}>
+    <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+  </svg>
+);
+
+export const SparklesIcon = ({ size = 24, className }: IconProps) => (
+  <svg {...base(size)} className={className}>
+    <path d="M12 3l1.8 4.7L18.5 9l-4.7 1.8L12 15.5l-1.8-4.7L5.5 9l4.7-1.3L12 3z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+    <path d="M18.5 14l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8.8-2z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+  </svg>
+);
+
+export const CropIcon = ({ size = 24, className }: IconProps) => (
+  <svg {...base(size)} className={className}>
+    <path d="M6 2v14a2 2 0 002 2h14M2 6h14a2 2 0 012 2v14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+export const AdjustIcon = ({ size = 24, className }: IconProps) => (
+  <svg {...base(size)} className={className}>
+    <path d="M5 7h14M5 12h14M5 17h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    <circle cx="9" cy="7" r="2.2" fill="currentColor" />
+    <circle cx="15" cy="12" r="2.2" fill="currentColor" />
+    <circle cx="8" cy="17" r="2.2" fill="currentColor" />
+  </svg>
+);
+
+export const FiltersIcon = ({ size = 24, className }: IconProps) => (
+  <svg {...base(size)} className={className}>
+    <circle cx="9" cy="9" r="5.5" stroke="currentColor" strokeWidth="1.8" />
+    <circle cx="15" cy="15" r="5.5" stroke="currentColor" strokeWidth="1.8" />
+  </svg>
+);
+
+export const RotateIcon = ({ size = 24, className }: IconProps) => (
+  <svg {...base(size)} className={className}>
+    <path d="M4 9a8 8 0 0113-3l3 3M20 4v5h-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M20 15a8 8 0 01-13 3l-3-3M4 20v-5h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+export const MarkupIcon = ({ size = 24, className }: IconProps) => (
+  <svg {...base(size)} className={className}>
+    <path d="M4 20l3-1L19 7l-3-3L4 16l-1 3z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+    <path d="M14 6l3 3" stroke="currentColor" strokeWidth="1.8" />
+  </svg>
+);
+
+export const EraserIcon = ({ size = 24, className }: IconProps) => (
+  <svg {...base(size)} className={className}>
+    <path d="M5 14l6-6 6 6-4 4H9l-4-4z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+    <path d="M13 6l5 5M8 20h12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+  </svg>
+);
+
+export const ExpandIcon = ({ size = 24, className }: IconProps) => (
+  <svg {...base(size)} className={className}>
+    <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);

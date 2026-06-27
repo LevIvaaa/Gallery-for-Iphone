@@ -1,11 +1,10 @@
-import { PhotoStackIcon, AlbumsIcon, SearchIcon } from "../icons";
+import { PhotoStackIcon, AlbumsIcon } from "../icons";
 
-export type Tab = "library" | "albums" | "search";
+export type Tab = "library" | "collections";
 
 const tabs: { key: Tab; label: string; Icon: typeof PhotoStackIcon }[] = [
   { key: "library", label: "Медиатека", Icon: PhotoStackIcon },
-  { key: "albums", label: "Альбомы", Icon: AlbumsIcon },
-  { key: "search", label: "Поиск", Icon: SearchIcon },
+  { key: "collections", label: "Коллекции", Icon: AlbumsIcon },
 ];
 
 export function TabBar({
@@ -23,7 +22,7 @@ export function TabBar({
           className={`tab-item ${active === key ? "active" : ""}`}
           onClick={() => onChange(key)}
         >
-          <Icon size={26} />
+          <Icon size={22} />
           <span>{label}</span>
         </button>
       ))}

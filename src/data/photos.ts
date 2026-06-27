@@ -1,61 +1,84 @@
-export interface Photo {
-  id: number;
-  seed: string;
-  /** Подпись/место для детального экрана */
+import type { Photo } from "../types";
+
+// Тестовые данные для веб-превью (на устройстве используются реальные фото).
+// Содержат богатые метаданные, чтобы продемонстрировать экран информации.
+
+const samples: {
   caption: string;
-  /** Дата съёмки — для группировки по дням/месяцам */
-  date: string;
-  favorite: boolean;
-}
-
-const captions = [
-  "Берег моря",
-  "Горный перевал",
-  "Утренний кофе",
-  "Городские огни",
-  "Лесная тропа",
-  "Закат над озером",
-  "Старый город",
-  "Полевые цветы",
-  "Зимний лес",
-  "Маяк на скале",
-  "Туманное утро",
-  "Пустынная дорога",
+  city?: string;
+  country?: string;
+  daysAgo: number;
+  fav?: boolean;
+  loc?: { lat: number; lng: number; altitude?: number };
+  meta: Photo["meta"];
+  ratio: "p" | "l"; // портрет / ландшафт
+}[] = [
+  { caption: "Утренний свет", daysAgo: 0, fav: true, ratio: "l",
+    meta: { camera: "iPhone 11", lens: "Осн. камера — 26 мм", fileName: "IMG_4821.HEIC", fileSize: 3_540_000, iso: 32, aperture: "f/1.8", shutter: "1/120", focalLength: "26 мм" } },
+  { caption: "Кофе", daysAgo: 0, ratio: "p",
+    meta: { camera: "iPhone 11", lens: "Осн. камера — 26 мм", fileName: "IMG_4822.HEIC", fileSize: 2_910_000, iso: 64, aperture: "f/1.8", shutter: "1/60", focalLength: "26 мм" } },
+  { caption: "Набережная", daysAgo: 0, ratio: "l",
+    meta: { camera: "iPhone 11", lens: "Сверхширокая — 13 мм", fileName: "IMG_4823.HEIC", fileSize: 4_120_000, iso: 25, aperture: "f/2.4", shutter: "1/500", focalLength: "13 мм" } },
+  { caption: "Вечерний город", daysAgo: 1, fav: true, ratio: "p",
+    meta: { camera: "iPhone 11", lens: "Осн. камера — 26 мм", fileName: "IMG_4790.HEIC", fileSize: 3_980_000, iso: 320, aperture: "f/1.8", shutter: "1/30", focalLength: "26 мм" } },
+  { caption: "Парк", daysAgo: 1, ratio: "l",
+    meta: { camera: "iPhone 11", lens: "Осн. камера — 26 мм", fileName: "IMG_4791.HEIC", fileSize: 3_300_000, iso: 50, aperture: "f/1.8", shutter: "1/250", focalLength: "26 мм" } },
+  { caption: "Закат у моря", city: "Барселона", country: "Испания", daysAgo: 6, fav: true, ratio: "l",
+    loc: { lat: 41.3851, lng: 2.1734, altitude: 12 },
+    meta: { camera: "iPhone 11", lens: "Осн. камера — 26 мм", fileName: "IMG_4501.HEIC", fileSize: 4_700_000, iso: 40, aperture: "f/1.8", shutter: "1/400", focalLength: "26 мм" } },
+  { caption: "Старый квартал", city: "Барселона", country: "Испания", daysAgo: 6, ratio: "p",
+    loc: { lat: 41.3833, lng: 2.1777, altitude: 18 },
+    meta: { camera: "iPhone 11", lens: "Осн. камера — 26 мм", fileName: "IMG_4502.HEIC", fileSize: 3_650_000, iso: 80, aperture: "f/1.8", shutter: "1/120", focalLength: "26 мм" } },
+  { caption: "Горный перевал", city: "Церматт", country: "Швейцария", daysAgo: 24, ratio: "l",
+    loc: { lat: 46.0207, lng: 7.7491, altitude: 1620 },
+    meta: { camera: "iPhone 11", lens: "Сверхширокая — 13 мм", fileName: "IMG_4203.HEIC", fileSize: 5_120_000, iso: 25, aperture: "f/2.4", shutter: "1/800", focalLength: "13 мм" } },
+  { caption: "Туман в долине", city: "Церматт", country: "Швейцария", daysAgo: 24, fav: true, ratio: "p",
+    loc: { lat: 46.0211, lng: 7.7486, altitude: 1705 },
+    meta: { camera: "iPhone 11", lens: "Осн. камера — 26 мм", fileName: "IMG_4204.HEIC", fileSize: 4_010_000, iso: 50, aperture: "f/1.8", shutter: "1/300", focalLength: "26 мм" } },
+  { caption: "Маяк", city: "Лиссабон", country: "Португалия", daysAgo: 52, ratio: "l",
+    loc: { lat: 38.7223, lng: -9.1393, altitude: 30 },
+    meta: { camera: "iPhone 11", lens: "Осн. камера — 26 мм", fileName: "IMG_3980.HEIC", fileSize: 3_870_000, iso: 32, aperture: "f/1.8", shutter: "1/600", focalLength: "26 мм" } },
+  { caption: "Трамвай", city: "Лиссабон", country: "Португалия", daysAgo: 52, fav: true, ratio: "p",
+    loc: { lat: 38.7139, lng: -9.1394, altitude: 45 },
+    meta: { camera: "iPhone 11", lens: "Осн. камера — 26 мм", fileName: "IMG_3981.HEIC", fileSize: 3_420_000, iso: 100, aperture: "f/1.8", shutter: "1/120", focalLength: "26 мм" } },
+  { caption: "Полевые цветы", city: "Прованс", country: "Франция", daysAgo: 88, ratio: "l",
+    loc: { lat: 43.9352, lng: 6.0679, altitude: 320 },
+    meta: { camera: "iPhone 11", lens: "Осн. камера — 26 мм", fileName: "IMG_3702.HEIC", fileSize: 4_450_000, iso: 25, aperture: "f/1.8", shutter: "1/700", focalLength: "26 мм" } },
 ];
 
-const dates = [
-  "Сегодня",
-  "Вчера",
-  "12 июня 2026",
-  "3 мая 2026",
-  "28 апреля 2026",
-  "14 марта 2026",
+const SEEDS = [
+  "morning", "coffee", "promenade", "citynight", "park", "sunset-sea",
+  "oldtown", "pass", "valleyfog", "lighthouse", "tram", "wildflowers",
 ];
 
-// Генерируем набор тестовых фотографий.
-export const photos: Photo[] = Array.from({ length: 36 }, (_, i) => ({
-  id: i + 1,
-  seed: `gallery-${i + 1}`,
-  caption: captions[i % captions.length],
-  date: dates[Math.floor(i / 6) % dates.length],
-  favorite: i % 7 === 0,
-}));
-
-/** URL миниатюры (квадрат) */
-export const thumbUrl = (p: Photo, size = 300) =>
-  `https://picsum.photos/seed/${p.seed}/${size}/${size}`;
-
-/** URL полноразмерного фото */
-export const fullUrl = (p: Photo, w = 900, h = 1200) =>
-  `https://picsum.photos/seed/${p.seed}/${w}/${h}`;
-
-/** Группировка фото по дате (для секций в ленте) */
-export function groupByDate(list: Photo[]): { date: string; items: Photo[] }[] {
-  const map = new Map<string, Photo[]>();
-  for (const p of list) {
-    const arr = map.get(p.date) ?? [];
-    arr.push(p);
-    map.set(p.date, arr);
-  }
-  return Array.from(map, ([date, items]) => ({ date, items }));
+function dateDaysAgo(days: number, hour: number, minute: number): Date {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  d.setHours(hour, minute, 0, 0);
+  return d;
 }
+
+export const demoPhotos: Photo[] = samples.map((s, i) => {
+  const seed = SEEDS[i];
+  const portrait = s.ratio === "p";
+  const w = portrait ? 2316 : 4032;
+  const h = portrait ? 3088 : 3024;
+  const fullW = portrait ? 900 : 1200;
+  const fullH = portrait ? 1200 : 900;
+  return {
+    id: `demo-${i + 1}`,
+    thumb: `https://picsum.photos/seed/${seed}/400/400`,
+    full: `https://picsum.photos/seed/${seed}/${fullW}/${fullH}`,
+    caption: s.caption,
+    city: s.city,
+    country: s.country,
+    date: dateDaysAgo(s.daysAgo, 9 + (i % 10), (i * 7) % 60),
+    addedDate: dateDaysAgo(Math.max(0, s.daysAgo - 0), 10 + (i % 8), (i * 11) % 60),
+    favorite: !!s.fav,
+    width: w,
+    height: h,
+    location: s.loc,
+    meta: s.meta,
+    source: "demo",
+  };
+});

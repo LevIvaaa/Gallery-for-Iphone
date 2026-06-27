@@ -45,5 +45,9 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Доступ к медиатеке нужен, чтобы показывать ваши фотографии в приложении, включая снимки из iCloud.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Разрешение нужно, чтобы сохранять изображения в вашу медиатеку.</string>
 </dict>
 </plist>
