@@ -324,18 +324,35 @@ export default function App() {
 
                 {album && (
                   <>
-                    <div className="top-head sticky album-sticky scrim">
-                      <button className="back-link" onClick={() => setAlbum(null)}>
-                        <ChevronLeftIcon size={22} />
-                        <span>Назад</span>
-                      </button>
-                      <h1 className="big-title small">{album.title}</h1>
-                    </div>
+                    {selecting ? (
+                      <div className="top-head sticky scrim">
+                        <div className="head-titles">
+                          <h1 className="big-title small">
+                            {selected.size ? `Выбрано: ${selected.size}` : "Выберите фото"}
+                          </h1>
+                        </div>
+                        <button className="done-btn" onClick={exitSelection}>
+                          Готово
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="top-head sticky album-sticky scrim">
+                        <button className="back-link" onClick={() => setAlbum(null)}>
+                          <ChevronLeftIcon size={22} />
+                          <span>Назад</span>
+                        </button>
+                        <h1 className="big-title small">{album.title}</h1>
+                      </div>
+                    )}
                     {album.photos.length ? (
                       <PhotoGrid
                         photos={album.photos}
                         columns={colCols + 1}
+                        selecting={selecting}
+                        selected={selected}
                         onOpen={(p) => openPhotoIn(album.photos, p, true)}
+                        onToggleSelect={toggleSelect}
+                        onLongPress={(p) => setContextPhoto(p)}
                       />
                     ) : (
                       <div className="empty-album">
@@ -473,6 +490,7 @@ export default function App() {
         />
         {avatarEditSrc && (
           <Editor
+            circleCrop
             photo={{
               id: "avatar",
               thumb: avatarEditSrc,

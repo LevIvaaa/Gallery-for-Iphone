@@ -55,10 +55,12 @@ const MIN = 0.15;
 
 export function Editor({
   photo,
+  circleCrop,
   onCancel,
   onSave,
 }: {
   photo: Photo;
+  circleCrop?: boolean;
   onCancel: () => void;
   onSave: (dataUrl: string) => void;
 }) {
@@ -66,7 +68,7 @@ export function Editor({
   const [hist, setHist] = useState<ES[]>([INIT]);
   const [hi, setHi] = useState(0);
   const [draft, setDraft] = useState<ES>(INIT);
-  const [tab, setTab] = useState<Tab>("adjust");
+  const [tab, setTab] = useState<Tab>(circleCrop ? "crop" : "adjust");
   const [tool, setTool] = useState<keyof Adjust>("exposure");
   const [nat, setNat] = useState({ w: 0, h: 0 });
   const [markupMode, setMarkupMode] = useState(false);
@@ -107,7 +109,21 @@ export function Editor({
     draft.crop.y <= 0.001 &&
     draft.crop.w >= 0.999 &&
     draft.crop.h >= 0.999;
-  const renderCrop = isFull ? null : draft.crop;
+  const renderCrop = isFull && !circleCrop ? null : draft.crop;
+
+  // Квадратная (в пикселях) область — для круглого аватара
+  const squareRect = (w: number, cx: number, cy: number): CropRect => {
+    const ratio = nat.w && nat.h ? nat.w / nat.h : 1;
+    let ww = clamp(w, MIN, 1);
+    let hh = clamp(ww * ratio, MIN, 1);
+    ww = hh / ratio;
+    return {
+      x: clamp(cx - ww / 2, 0, 1 - ww),
+      y: clamp(cy - hh / 2, 0, 1 - hh),
+      w: ww,
+      h: hh,
+    };
+  };
 
   const setAspect = (key: string) => {
     const r = aspects.find((a) => a.key === key)?.r ?? null;
@@ -228,18 +244,22 @@ export function Editor({
       const r = pinch.current.rect;
       const cx = r.x + r.w / 2;
       const cy = r.y + r.h / 2;
-      const w = clamp(r.w * ratio, MIN, 1);
-      const h = clamp(r.h * ratio, MIN, 1);
-      setDraft((dd) => ({
-        ...dd,
-        aspect: "free",
-        crop: {
-          x: clamp(cx - w / 2, 0, 1 - w),
-          y: clamp(cy - h / 2, 0, 1 - h),
-          w,
-          h,
-        },
-      }));
+      if (circleCrop) {
+        setDraft((dd) => ({ ...dd, crop: squareRect(r.w * ratio, cx, cy) }));
+      } else {
+        const w = clamp(r.w * ratio, MIN, 1);
+        const h = clamp(r.h * ratio, MIN, 1);
+        setDraft((dd) => ({
+          ...dd,
+          aspect: "free",
+          crop: {
+            x: clamp(cx - w / 2, 0, 1 - w),
+            y: clamp(cy - h / 2, 0, 1 - h),
+            w,
+            h,
+          },
+        }));
+      }
     }
   };
   const onTouchEnd = (e: React.TouchEvent) => {
@@ -320,9 +340,24 @@ export function Editor({
             style={{ filter: previewFilter }}
             draggable={false}
             crossOrigin="anonymous"
-            onLoad={(e) =>
-              setNat({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })
-            }
+            onLoad={(e) => {
+              const w = e.currentTarget.naturalWidth;
+              const h = e.currentTarget.naturalHeight;
+              setNat({ w, h });
+              if (circleCrop) {
+                const ratio = w / h;
+                let cw = 0.8;
+                let ch = cw * ratio;
+                if (ch > 0.95) {
+                  ch = 0.92;
+                  cw = ch / ratio;
+                }
+                const rect = { x: (1 - cw) / 2, y: (1 - ch) / 2, w: cw, h: ch };
+                setDraft((d) => ({ ...d, crop: rect }));
+                setHist([{ ...INIT, crop: rect }]);
+                setHi(0);
+              }
+            }}
           />
           {draft.adjust.vignette > 0 && (
             <span className="vignette-ov" style={{ opacity: draft.adjust.vignette / 100 }} />
@@ -334,7 +369,7 @@ export function Editor({
           />
           {tab === "crop" && (
             <div
-              className="crop-frame"
+              className={`crop-frame ${circleCrop ? "circle" : ""}`}
               style={{
                 left: `${cf.x * 100}%`,
                 top: `${cf.y * 100}%`,
@@ -344,10 +379,14 @@ export function Editor({
               onPointerDown={(e) => cropPointerDown(e, "move")}
             >
               <span className="crop-grid" />
-              <span className="ch tl" onPointerDown={(e) => cropPointerDown(e, "tl")} />
-              <span className="ch tr" onPointerDown={(e) => cropPointerDown(e, "tr")} />
-              <span className="ch bl" onPointerDown={(e) => cropPointerDown(e, "bl")} />
-              <span className="ch br" onPointerDown={(e) => cropPointerDown(e, "br")} />
+              {!circleCrop && (
+                <>
+                  <span className="ch tl" onPointerDown={(e) => cropPointerDown(e, "tl")} />
+                  <span className="ch tr" onPointerDown={(e) => cropPointerDown(e, "tr")} />
+                  <span className="ch bl" onPointerDown={(e) => cropPointerDown(e, "bl")} />
+                  <span className="ch br" onPointerDown={(e) => cropPointerDown(e, "br")} />
+                </>
+              )}
             </div>
           )}
         </div>
@@ -433,17 +472,19 @@ export function Editor({
 
         {tab === "crop" && (
           <div className="crop-panel">
-            <div className="seg-row">
-              {aspects.map((a) => (
-                <button
-                  key={a.key}
-                  className={`chip ${draft.aspect === a.key ? "on" : ""}`}
-                  onClick={() => setAspect(a.key)}
-                >
-                  {a.label}
-                </button>
-              ))}
-            </div>
+            {!circleCrop && (
+              <div className="seg-row">
+                {aspects.map((a) => (
+                  <button
+                    key={a.key}
+                    className={`chip ${draft.aspect === a.key ? "on" : ""}`}
+                    onClick={() => setAspect(a.key)}
+                  >
+                    {a.label}
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="rotate-row">
               <button className="chip" onClick={() => commit({ ...draft, rotate: draft.rotate - 90 })}>
                 <RotateCwIcon size={18} /> 90°

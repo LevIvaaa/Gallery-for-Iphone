@@ -2280,3 +2280,9 @@ body {
 }
 .av-act.danger { color: var(--danger); }
 .av-act:disabled { opacity: 0.4; }
+
+/* ===== Круглая область кадрирования (аватар) ===== */
+.crop-frame.circle {
+  border-radius: 50%;
+  overflow: hidden;
+}
