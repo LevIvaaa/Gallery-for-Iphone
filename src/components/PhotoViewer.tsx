@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Photo } from "../types";
 import { detailTitle, formatTime } from "../lib/format";
-import { getFullSrc } from "../services/photoLibrary";
+import { getFullSrc, getThumbSrc } from "../services/photoLibrary";
 import { reverseGeocode } from "../lib/geocode";
 import { haptic } from "../lib/haptics";
 import { sharePhoto } from "../lib/share";
@@ -47,7 +47,8 @@ export function PhotoViewer({
 }) {
   const photo = photos[index];
   const [fullscreen, setFullscreen] = useState(false);
-  const [fullSrc, setFullSrc] = useState<string | null>(photo.full);
+  const [srcCache, setSrcCache] = useState<Record<string, string>>({});
+  const fullSrc = srcCache[photo.id] ?? photo.full;
   const [showMeta, setShowMeta] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
   const [confirm, setConfirm] = useState<null | "delete">(null);
@@ -63,18 +64,23 @@ export function PhotoViewer({
   const pendingDir = useRef(0);
   const widthRef = useRef(1);
 
+  // Текущее фото — полным размером, соседние — превью (ленивая загрузка)
   useEffect(() => {
     let cancelled = false;
-    setFullSrc(photo.full);
-    if (!photo.full && photo.identifier) {
-      getFullSrc(photo.identifier)
-        .then((src) => !cancelled && setFullSrc(src))
+    [index - 1, index, index + 1].forEach((i) => {
+      const p = photos[i];
+      if (!p || p.thumb || !p.identifier || srcCache[p.id]) return;
+      const load = i === index ? getFullSrc(p.identifier) : getThumbSrc(p.identifier, 512);
+      load
+        .then((s) => {
+          if (!cancelled && s) setSrcCache((c) => ({ ...c, [p.id]: s }));
+        })
         .catch(() => {});
-    }
+    });
     return () => {
       cancelled = true;
     };
-  }, [photo]);
+  }, [index, photos]);
 
   useEffect(() => {
     if (photo.location && !photo.city) {
@@ -242,11 +248,12 @@ export function PhotoViewer({
         {slides.map((si, k) => {
           const p = photos[si];
           const isCurrent = k === 1;
+          const s = p ? p.thumb || srcCache[p.id] || "" : "";
           return (
             <div className="slide" key={si}>
-              {p && (
+              {p && s && (
                 <img
-                  src={isCurrent ? fullSrc ?? p.thumb : p.full ?? p.thumb}
+                  src={s}
                   alt={p.caption ?? ""}
                   className="viewer-img"
                   draggable={false}
