@@ -5,6 +5,7 @@ import { PhotoViewer } from "./components/PhotoViewer";
 import { Editor } from "./components/Editor";
 import { PermissionScreen } from "./components/PermissionScreen";
 import { Avatar, AvatarMenu, UserProfile } from "./components/AvatarMenu";
+import { AvatarScreen } from "./components/AvatarScreen";
 import { SettingsSheet, Settings, DEFAULT_SETTINGS } from "./components/SettingsSheet";
 import { Collections, OpenCollection } from "./components/Collections";
 import { AddToAlbumScreen } from "./components/AddToAlbumScreen";
@@ -80,8 +81,15 @@ export default function App() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [contextPhoto, setContextPhoto] = useState<Photo | null>(null);
   const [pendingDelete, setPendingDelete] = useState<string[] | null>(null);
-  const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined);
+  const [avatarUrl, setAvatarUrl] = useState<string | undefined>(() => {
+    try {
+      return localStorage.getItem("gallery-avatar") || undefined;
+    } catch {
+      return undefined;
+    }
+  });
   const [avatarEditSrc, setAvatarEditSrc] = useState<string | null>(null);
+  const [avatarViewOpen, setAvatarViewOpen] = useState(false);
 
   const contentRef = useRef<HTMLElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -92,7 +100,6 @@ export default function App() {
   const profile: UserProfile = { ...user, avatar: avatarUrl };
 
   const pickAvatar = () => {
-    setAvatarOpen(false);
     fileRef.current?.click();
   };
   const onAvatarFile = (e: ChangeEvent<HTMLInputElement>) => {
@@ -104,7 +111,10 @@ export default function App() {
     e.target.value = "";
   };
 
-  const visiblePhotos = useMemo(() => photos.filter((p) => !p.hidden), [photos]);
+  const visiblePhotos = useMemo(
+    () => photos.filter((p) => !p.hidden && !p.deleted),
+    [photos]
+  );
   // Старое сверху, новое снизу (как в iOS) — открываемся в самом низу
   const libraryPhotos = useMemo(
     () =>
@@ -153,6 +163,16 @@ export default function App() {
     if (settings.theme === "system") delete el.dataset.theme;
     else el.dataset.theme = settings.theme;
   }, [settings.theme]);
+
+  // Сохранение аватарки между сессиями
+  useEffect(() => {
+    try {
+      if (avatarUrl) localStorage.setItem("gallery-avatar", avatarUrl);
+      else localStorage.removeItem("gallery-avatar");
+    } catch {
+      /* недоступно */
+    }
+  }, [avatarUrl]);
 
   // Открываемся в самом низу медиатеки (свежие фото внизу)
   useEffect(() => {
@@ -417,11 +437,30 @@ export default function App() {
           <AvatarMenu
             user={profile}
             onClose={() => setAvatarOpen(false)}
-            onChangeAvatar={pickAvatar}
+            onViewAvatar={() => {
+              setAvatarOpen(false);
+              setAvatarViewOpen(true);
+            }}
             onOpenSettings={() => {
               setAvatarOpen(false);
               setSettingsOpen(true);
             }}
+          />
+        )}
+
+        {avatarViewOpen && (
+          <AvatarScreen
+            avatar={avatarUrl}
+            initials={user.name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()}
+            onCrop={() => {
+              if (avatarUrl) setAvatarEditSrc(avatarUrl);
+            }}
+            onReplace={pickAvatar}
+            onRemove={() => {
+              setAvatarUrl(undefined);
+              setAvatarViewOpen(false);
+            }}
+            onClose={() => setAvatarViewOpen(false)}
           />
         )}
 

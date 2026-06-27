@@ -42,6 +42,8 @@ export interface Photo {
   kind: MediaKind;
   pinned?: boolean;
   hidden?: boolean;
+  deleted?: boolean;
+  deletedDate?: Date;
   durationSec?: number; // для видео/записей экрана
   width?: number;
   height?: number;

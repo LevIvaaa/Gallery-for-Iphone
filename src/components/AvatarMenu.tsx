@@ -10,12 +10,12 @@ export function AvatarMenu({
   user,
   onClose,
   onOpenSettings,
-  onChangeAvatar,
+  onViewAvatar,
 }: {
   user: UserProfile;
   onClose: () => void;
   onOpenSettings: () => void;
-  onChangeAvatar?: () => void;
+  onViewAvatar?: () => void;
 }) {
   const initials = user.name
     .split(" ")
@@ -31,31 +31,20 @@ export function AvatarMenu({
           <CloseIcon size={18} />
         </button>
 
-        {/* Аватарка + имя */}
+        {/* Аватарка + имя (тап по аватарке — открыть/изменить фото) */}
         <div className="account-head">
-          <div className="avatar avatar-lg">
+          <button className="avatar avatar-lg" onClick={onViewAvatar} aria-label="Фото профиля">
             {user.avatar ? (
               <img src={user.avatar} alt={user.name} />
             ) : (
               <span>{initials}</span>
             )}
-          </div>
+          </button>
           <div className="account-name">
             <strong>{user.name}</strong>
             {user.subtitle && <small>{user.subtitle}</small>}
           </div>
         </div>
-
-        {/* Сменить фото */}
-        {onChangeAvatar && (
-          <button className="account-row" onClick={onChangeAvatar} style={{ marginBottom: 8 }}>
-            <span className="row-icon">
-              <PersonIcon size={20} />
-            </span>
-            <span className="row-label">Сменить фото</span>
-            <ChevronRightIcon size={18} className="row-chevron" />
-          </button>
-        )}
 
         {/* Настройки */}
         <button className="account-row" onClick={onOpenSettings}>

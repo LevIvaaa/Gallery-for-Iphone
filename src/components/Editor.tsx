@@ -8,10 +8,7 @@ import {
   buildFilter,
   renderEdited,
   CropRect,
-  autoEnhance,
-  denoise,
 } from "../lib/imageEdit";
-import { removeBackground } from "../services/ai";
 import {
   UndoIcon,
   RedoIcon,
@@ -19,11 +16,10 @@ import {
   RotateCwIcon,
   FlipHIcon,
   SparklesIcon,
-  EraserIcon,
   CheckIcon,
 } from "../icons";
 
-type Tab = "adjust" | "filters" | "crop" | "ai";
+type Tab = "adjust" | "filters" | "crop";
 type CropMode = "move" | "tl" | "tr" | "bl" | "br" | null;
 
 interface ES {
@@ -66,7 +62,7 @@ export function Editor({
   onCancel: () => void;
   onSave: (dataUrl: string) => void;
 }) {
-  const [workingSrc, setWorkingSrc] = useState(photo.full || photo.thumb);
+  const [workingSrc] = useState(photo.full || photo.thumb);
   const [hist, setHist] = useState<ES[]>([INIT]);
   const [hi, setHi] = useState(0);
   const [draft, setDraft] = useState<ES>(INIT);
@@ -256,36 +252,6 @@ export function Editor({
   const clearMarkup = () => {
     const cv = markupRef.current;
     cv?.getContext("2d")?.clearRect(0, 0, cv.width, cv.height);
-  };
-
-  const runAI = async (kind: "enhance" | "removebg" | "denoise") => {
-    setBusy(kind === "removebg" ? "Загрузка ИИ-модели…" : "Обработка…");
-    try {
-      const baked = await renderEdited(workingSrc, {
-        adjust: draft.adjust,
-        presetCss,
-        rotateDeg: draft.rotate,
-        flipH: draft.flipH,
-        flipV: draft.flipV,
-        crop: renderCrop,
-        markup: markupRef.current,
-      });
-      let out: string;
-      if (kind === "enhance") out = await autoEnhance(baked);
-      else if (kind === "denoise") out = await denoise(baked);
-      else
-        out = await removeBackground(baked, (p) => {
-          if (p?.progress) setBusy(`Обработка… ${Math.round(p.progress)}%`);
-        });
-      setWorkingSrc(out);
-      clearMarkup();
-      commit({ ...INIT });
-    } catch {
-      setBusy("Не удалось");
-      setTimeout(() => setBusy(""), 1200);
-      return;
-    }
-    setBusy("");
   };
 
   const save = async () => {
@@ -491,23 +457,6 @@ export function Editor({
             </div>
           </div>
         )}
-
-        {tab === "ai" && (
-          <div className="ai-rail">
-            <button className="ai-card" onClick={() => runAI("enhance")}>
-              <span className="ai-ico"><SparklesIcon size={24} /></span>
-              Улучшить
-            </button>
-            <button className="ai-card" onClick={() => runAI("removebg")}>
-              <span className="ai-ico"><EraserIcon size={24} /></span>
-              Удалить фон
-            </button>
-            <button className="ai-card" onClick={() => runAI("denoise")}>
-              <span className="ai-ico"><SparklesIcon size={24} /></span>
-              Убрать шум
-            </button>
-          </div>
-        )}
       </div>
 
       <nav className="editor-tabs">
@@ -519,9 +468,6 @@ export function Editor({
         </button>
         <button className={`etab ${tab === "crop" ? "on" : ""}`} onClick={() => { setTab("crop"); setMarkupMode(false); }}>
           Обрезать
-        </button>
-        <button className={`etab ${tab === "ai" ? "on" : ""}`} onClick={() => { setTab("ai"); setMarkupMode(false); }}>
-          ИИ
         </button>
         <button className="etab save-dot" onClick={save} aria-label="Готово">
           <CheckIcon size={20} />

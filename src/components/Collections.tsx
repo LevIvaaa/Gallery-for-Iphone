@@ -49,7 +49,8 @@ export function Collections({
     });
 
   const byId = useMemo(() => new Map(photos.map((p) => [p.id, p])), [photos]);
-  const visible = photos.filter((p) => !p.hidden);
+  const visible = photos.filter((p) => !p.hidden && !p.deleted);
+  const recentlyDeleted = photos.filter((p) => p.deleted);
 
   const favorites = visible.filter((p) => p.favorite);
   const recentSaved = [...visible].sort(
@@ -60,7 +61,7 @@ export function Collections({
   const videos = kindOf(visible, "video");
   const live = kindOf(visible, "live");
   const selfies = kindOf(visible, "selfie");
-  const hidden = photos.filter((p) => p.hidden);
+  const hidden = photos.filter((p) => p.hidden && !p.deleted);
 
   const cities = useMemo(() => {
     const m = new Map<string, Photo[]>();
@@ -101,7 +102,12 @@ export function Collections({
       Icon: LockIcon,
     },
     {
-      c: { title: "Недавно удалённые", photos: [], locked: true, emptyHint: "Удалённые фото хранятся 30 дней." },
+      c: {
+        title: "Недавно удалённые",
+        photos: recentlyDeleted,
+        locked: true,
+        emptyHint: "Удалённые фото хранятся 30 дней.",
+      },
       Icon: TrashIcon,
     },
   ];

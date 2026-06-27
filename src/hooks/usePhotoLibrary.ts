@@ -40,8 +40,21 @@ export function usePhotoLibrary() {
     );
   }, []);
 
+  // Не удаляем сразу — помечаем как удалённое (для «Недавно удалённые»)
   const removePhoto = useCallback((id: string) => {
-    setPhotos((prev) => prev.filter((p) => p.id !== id));
+    setPhotos((prev) =>
+      prev.map((p) =>
+        p.id === id ? { ...p, deleted: true, deletedDate: new Date() } : p
+      )
+    );
+  }, []);
+
+  const restorePhoto = useCallback((id: string) => {
+    setPhotos((prev) =>
+      prev.map((p) =>
+        p.id === id ? { ...p, deleted: false, deletedDate: undefined } : p
+      )
+    );
   }, []);
 
   const setCity = useCallback((id: string, city: string) => {
@@ -72,5 +85,6 @@ export function usePhotoLibrary() {
     setCity,
     updatePhoto,
     toggleHidden,
+    restorePhoto,
   };
 }
