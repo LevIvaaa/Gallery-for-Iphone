@@ -8,11 +8,13 @@ import { sharePhoto } from "../lib/share";
 import { deleteFromDevice } from "../services/nativeDelete";
 import { MetadataSheet } from "./MetadataSheet";
 import { Editor } from "./Editor";
+import { ConfirmSheet } from "./ConfirmSheet";
 import { ArrowLeftIcon, AdjustIcon, ShareIcon, HeartIcon, TrashIcon } from "../icons";
 
 export function PhotoViewer({
   photos,
   index,
+  showMaps,
   onIndexChange,
   onClose,
   onToggleFavorite,
@@ -23,6 +25,7 @@ export function PhotoViewer({
 }: {
   photos: Photo[];
   index: number;
+  showMaps?: boolean;
   onIndexChange: (i: number) => void;
   onClose: () => void;
   onToggleFavorite: (id: string) => void;
@@ -36,10 +39,10 @@ export function PhotoViewer({
   const [fullSrc, setFullSrc] = useState<string | null>(photo.full);
   const [showMeta, setShowMeta] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
+  const [confirm, setConfirm] = useState<null | "delete" | "hide">(null);
+  const [closing, setClosing] = useState(false);
 
-  // Жесты
   const [dragX, setDragX] = useState(0);
-  const [dragY, setDragY] = useState(0);
   const [animating, setAnimating] = useState(false);
   const pagerRef = useRef<HTMLDivElement>(null);
   const start = useRef({ x: 0, y: 0 });
@@ -48,7 +51,6 @@ export function PhotoViewer({
   const pendingDir = useRef(0);
   const widthRef = useRef(1);
 
-  // Полноразмерное фото на устройстве
   useEffect(() => {
     let cancelled = false;
     setFullSrc(photo.full);
@@ -62,7 +64,6 @@ export function PhotoViewer({
     };
   }, [photo]);
 
-  // Геокодинг города для заголовка
   useEffect(() => {
     if (photo.location && !photo.city) {
       reverseGeocode(photo.location.lat, photo.location.lng).then(
@@ -71,10 +72,15 @@ export function PhotoViewer({
     }
   }, [photo, onSetCity]);
 
-  // Клавиатура (десктоп)
+  const close = () => {
+    setClosing(true);
+    haptic("light");
+    window.setTimeout(onClose, 180);
+  };
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") close();
       if (e.key === "ArrowRight") nav(1);
       if (e.key === "ArrowLeft") nav(-1);
     };
@@ -100,7 +106,6 @@ export function PhotoViewer({
     }
     setAnimating(false);
     setDragX(0);
-    setDragY(0);
   };
 
   // ===== Жесты =====
@@ -113,7 +118,6 @@ export function PhotoViewer({
   };
   const onPointerMove = (e: React.PointerEvent) => {
     if (e.buttons === 0 && e.pointerType === "mouse") return;
-    if (!start.current) return;
     const dx = e.clientX - start.current.x;
     const dy = e.clientY - start.current.y;
     if (axis.current === "none" && Math.hypot(dx, dy) > 10) {
@@ -123,31 +127,34 @@ export function PhotoViewer({
     if (axis.current === "h") {
       let v = dx;
       if ((index === 0 && dx > 0) || (index === photos.length - 1 && dx < 0))
-        v = dx * 0.3; // сопротивление на краях
+        v = dx * 0.3;
       setDragX(v);
-    } else if (axis.current === "v") {
-      setDragY(dy);
     }
+    // вертикаль: фото не двигаем (без рывка), решаем на отпускании
   };
   const onPointerUp = () => {
-    const thr = widthRef.current * 0.22;
     if (axis.current === "h") {
+      const thr = widthRef.current * 0.22;
       if (dragX <= -thr && index < photos.length - 1) nav(1);
       else if (dragX >= thr && index > 0) nav(-1);
       else {
         setAnimating(true);
         setDragX(0);
       }
-    } else if (axis.current === "v") {
-      if (dragY > 120) {
-        onClose();
-        return;
-      }
-      if (dragY < -90) setShowMeta(true);
-      setAnimating(true);
-      setDragY(0);
     }
     axis.current = "none";
+  };
+  // Итог жеста: вертикаль (вверх=закрыть, вниз=детали) или горизонталь
+  const onPointerUpFull = (e: React.PointerEvent) => {
+    const dy = e.clientY - start.current.y;
+    const dx = e.clientX - start.current.x;
+    if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 60) {
+      if (dy < 0) close(); // свайп вверх — закрыть
+      else setShowMeta(true); // свайп вниз — детали
+      axis.current = "none";
+      return;
+    }
+    onPointerUp();
   };
 
   const onImageClick = () => {
@@ -166,7 +173,9 @@ export function PhotoViewer({
     haptic("medium");
     onToggleFavorite(photo.id);
   };
-  const handleDelete = async () => {
+
+  const doDelete = async () => {
+    setConfirm(null);
     haptic("heavy");
     const id = photo.id;
     const ok = await deleteFromDevice(photo.identifier);
@@ -176,29 +185,22 @@ export function PhotoViewer({
     onDelete(id);
     if (isLast) onClose();
   };
+  const doHide = () => {
+    setConfirm(null);
+    haptic("medium");
+    onToggleHidden(photo.id);
+  };
 
-  // Окно из трёх слайдов для пейджера
   const slides = [index - 1, index, index + 1];
-  const dim = Math.min(Math.abs(dragY) / 800, 0.55);
 
   return (
-    <div
-      className={`viewer ${fullscreen ? "fs" : ""}`}
-      style={{ background: `rgba(0,0,0,${fullscreen ? 1 : 1 - dim})` }}
-    >
+    <div className={`viewer ${fullscreen ? "fs" : ""} ${closing ? "closing" : ""}`}>
       {!fullscreen && (
-        <div
-          className="viewer-bg"
-          style={{ backgroundImage: `url(${photo.thumb})`, opacity: 1 - dim }}
-        />
-      )}
-
-      {!fullscreen && (
-        <header className="viewer-top glass">
-          <button className="viewer-back" onClick={onClose} aria-label="Назад">
+        <header className="viewer-top">
+          <button className="viewer-back glass" onClick={close} aria-label="Назад">
             <ArrowLeftIcon size={22} />
           </button>
-          <div className="viewer-title">
+          <div className="viewer-title glass">
             <strong>{detailTitle(photo)}</strong>
             <small>{formatTime(photo.date)}</small>
           </div>
@@ -215,7 +217,7 @@ export function PhotoViewer({
         }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
+        onPointerUp={onPointerUpFull}
         onPointerCancel={onPointerUp}
         onTransitionEnd={onPagerTransitionEnd}
       >
@@ -230,16 +232,6 @@ export function PhotoViewer({
                   alt={p.caption ?? ""}
                   className="viewer-img"
                   draggable={false}
-                  style={
-                    isCurrent && axis.current === "v"
-                      ? {
-                          transform: `translateY(${dragY}px) scale(${Math.max(
-                            0.85,
-                            1 - Math.abs(dragY) / 1200
-                          )})`,
-                        }
-                      : undefined
-                  }
                   onClick={isCurrent ? onImageClick : undefined}
                 />
               )}
@@ -263,7 +255,7 @@ export function PhotoViewer({
           >
             <HeartIcon size={21} filled={photo.favorite} />
           </button>
-          <button className="vbtn danger" onClick={handleDelete} aria-label="Удалить">
+          <button className="vbtn danger" onClick={() => setConfirm("delete")} aria-label="Удалить">
             <TrashIcon size={21} />
           </button>
         </footer>
@@ -273,7 +265,11 @@ export function PhotoViewer({
         <MetadataSheet
           photo={photo}
           hidden={photo.hidden}
-          onToggleHidden={() => onToggleHidden(photo.id)}
+          showMaps={showMaps}
+          onToggleHidden={() => {
+            setShowMeta(false);
+            setConfirm("hide");
+          }}
           onClose={() => setShowMeta(false)}
         />
       )}
@@ -285,6 +281,25 @@ export function PhotoViewer({
             onUpdatePhoto(photo.id, { thumb: url, full: url });
             setShowEditor(false);
           }}
+        />
+      )}
+      {confirm === "delete" && (
+        <ConfirmSheet
+          title="Удалить фото?"
+          message="Фото будет удалено с устройства и из iCloud."
+          confirmLabel="Удалить"
+          destructive
+          onConfirm={doDelete}
+          onCancel={() => setConfirm(null)}
+        />
+      )}
+      {confirm === "hide" && (
+        <ConfirmSheet
+          title={photo.hidden ? "Показать фото?" : "Скрыть фото?"}
+          message={photo.hidden ? undefined : "Фото будет скрыто из медиатеки."}
+          confirmLabel={photo.hidden ? "Показать" : "Скрыть"}
+          onConfirm={doHide}
+          onCancel={() => setConfirm(null)}
         />
       )}
     </div>

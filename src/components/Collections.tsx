@@ -121,10 +121,10 @@ export function Collections({
     return (
       <section className="col-section">
         <div className="col-head">
-          <button className="col-title" onClick={() => onOpen({ title, photos: visible })}>
+          <div className="col-title">
             <span>{title}</span>
             <ChevronRightIcon size={20} />
-          </button>
+          </div>
           <div className="col-head-actions">
             {extra}
             <button

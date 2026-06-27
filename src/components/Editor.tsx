@@ -24,6 +24,7 @@ import {
 } from "../icons";
 
 type Tab = "adjust" | "filters" | "crop";
+type CropMode = "move" | "tl" | "tr" | "bl" | "br" | null;
 
 interface ES {
   adjust: Adjust;
@@ -32,11 +33,10 @@ interface ES {
   flipH: boolean;
   flipV: boolean;
   aspect: string;
-  scale: number;
-  cx: number;
-  cy: number;
+  crop: CropRect;
 }
 
+const FULL: CropRect = { x: 0, y: 0, w: 1, h: 1 };
 const INIT: ES = {
   adjust: { ...NEUTRAL },
   preset: "original",
@@ -44,9 +44,7 @@ const INIT: ES = {
   flipH: false,
   flipV: false,
   aspect: "free",
-  scale: 1,
-  cx: 0.5,
-  cy: 0.5,
+  crop: { ...FULL },
 };
 
 const aspects = [
@@ -55,8 +53,9 @@ const aspects = [
   { key: "p45", label: "4:5", r: 4 / 5 },
   { key: "w169", label: "16:9", r: 16 / 9 },
 ];
-
 const colors = ["#ff375f", "#ffd60a", "#30d158", "#0a84ff", "#ffffff", "#000000"];
+const clamp = (n: number, a: number, b: number) => Math.min(Math.max(n, a), b);
+const MIN = 0.15;
 
 export function Editor({
   photo,
@@ -81,7 +80,13 @@ export function Editor({
 
   const markupRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
-  const dragCrop = useRef(false);
+  const cropDrag = useRef<{ mode: CropMode; lx: number; ly: number }>({
+    mode: null,
+    lx: 0,
+    ly: 0,
+  });
+  const pinch = useRef<{ d: number; rect: CropRect } | null>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
 
   const presetCss = PRESETS.find((p) => p.key === draft.preset)?.css ?? "";
   const previewFilter = buildFilter(draft.adjust, presetCss);
@@ -93,45 +98,40 @@ export function Editor({
     }
   }, [nat]);
 
-  // ===== История (undo/redo) =====
   const commit = (next: ES) => {
     setHist((h) => [...h.slice(0, hi + 1), next]);
     setHi((i) => i + 1);
     setDraft(next);
   };
-  const undo = () => {
-    if (hi > 0) {
-      setHi(hi - 1);
-      setDraft(hist[hi - 1]);
-    }
-  };
-  const redo = () => {
-    if (hi < hist.length - 1) {
-      setHi(hi + 1);
-      setDraft(hist[hi + 1]);
-    }
-  };
+  const undo = () => hi > 0 && (setHi(hi - 1), setDraft(hist[hi - 1]));
+  const redo = () =>
+    hi < hist.length - 1 && (setHi(hi + 1), setDraft(hist[hi + 1]));
 
-  // ===== Кадрирование =====
-  const cropRect = (): CropRect | null => {
-    if (!nat.w) return null;
-    const imgAspect = nat.w / nat.h;
-    const r = aspects.find((a) => a.key === draft.aspect)?.r ?? null;
-    if (r === null && draft.scale >= 1) return null;
-    const ratio = r ?? imgAspect;
-    let w: number, h: number;
-    if (ratio >= imgAspect) {
-      w = draft.scale;
-      h = (imgAspect / ratio) * draft.scale;
-    } else {
-      h = draft.scale;
-      w = (ratio / imgAspect) * draft.scale;
+  const isFull =
+    draft.crop.x <= 0.001 &&
+    draft.crop.y <= 0.001 &&
+    draft.crop.w >= 0.999 &&
+    draft.crop.h >= 0.999;
+  const renderCrop = isFull ? null : draft.crop;
+
+  const setAspect = (key: string) => {
+    const r = aspects.find((a) => a.key === key)?.r ?? null;
+    let rect: CropRect;
+    if (r === null || !nat.w) rect = { ...FULL };
+    else {
+      const ia = nat.w / nat.h;
+      let w: number, h: number;
+      if (r >= ia) {
+        w = 1;
+        h = ia / r;
+      } else {
+        h = 1;
+        w = r / ia;
+      }
+      rect = { x: (1 - w) / 2, y: (1 - h) / 2, w, h };
     }
-    const cx = Math.min(Math.max(draft.cx, w / 2), 1 - w / 2);
-    const cy = Math.min(Math.max(draft.cy, h / 2), 1 - h / 2);
-    return { x: cx - w / 2, y: cy - h / 2, w, h };
+    commit({ ...draft, aspect: key, crop: rect });
   };
-  const crop = cropRect();
 
   // ===== Разметка =====
   const drawAt = (e: React.PointerEvent) => {
@@ -149,52 +149,127 @@ export function Editor({
     ctx.lineJoin = "round";
     ctx.stroke();
   };
-  const onPointerDown = (e: React.PointerEvent) => {
+
+  // ===== Кадрирование: перетаскивание/маркеры =====
+  const cropPointerDown = (e: React.PointerEvent, mode: CropMode) => {
+    e.stopPropagation();
+    cropDrag.current = { mode, lx: e.clientX, ly: e.clientY };
+  };
+
+  const onStagePointerDown = (e: React.PointerEvent) => {
     if (markupMode) {
       drawing.current = true;
-      const ctx = markupRef.current?.getContext("2d");
-      ctx?.beginPath();
+      markupRef.current?.getContext("2d")?.beginPath();
       drawAt(e);
-    } else if (tab === "crop") {
-      dragCrop.current = true;
     }
   };
-  const onPointerMove = (e: React.PointerEvent) => {
-    if (drawing.current) drawAt(e);
-    else if (dragCrop.current && tab === "crop") {
-      const wrap = (e.currentTarget as HTMLElement).getBoundingClientRect();
-      setDraft((d) => ({
-        ...d,
-        cx: (e.clientX - wrap.left) / wrap.width,
-        cy: (e.clientY - wrap.top) / wrap.height,
+  const onStagePointerMove = (e: React.PointerEvent) => {
+    if (drawing.current) {
+      drawAt(e);
+      return;
+    }
+    const cd = cropDrag.current;
+    if (!cd.mode || !wrapRef.current) return;
+    const wr = wrapRef.current.getBoundingClientRect();
+    const dx = (e.clientX - cd.lx) / wr.width;
+    const dy = (e.clientY - cd.ly) / wr.height;
+    cd.lx = e.clientX;
+    cd.ly = e.clientY;
+    setDraft((d) => {
+      let { x, y, w, h } = d.crop;
+      if (cd.mode === "move") {
+        x = clamp(x + dx, 0, 1 - w);
+        y = clamp(y + dy, 0, 1 - h);
+      } else {
+        if (cd.mode === "tl") {
+          const nx = clamp(x + dx, 0, x + w - MIN);
+          const ny = clamp(y + dy, 0, y + h - MIN);
+          w += x - nx;
+          h += y - ny;
+          x = nx;
+          y = ny;
+        } else if (cd.mode === "tr") {
+          const ny = clamp(y + dy, 0, y + h - MIN);
+          h += y - ny;
+          y = ny;
+          w = clamp(w + dx, MIN, 1 - x);
+        } else if (cd.mode === "bl") {
+          const nx = clamp(x + dx, 0, x + w - MIN);
+          w += x - nx;
+          x = nx;
+          h = clamp(h + dy, MIN, 1 - y);
+        } else if (cd.mode === "br") {
+          w = clamp(w + dx, MIN, 1 - x);
+          h = clamp(h + dy, MIN, 1 - y);
+        }
+      }
+      return { ...d, aspect: "free", crop: { x, y, w, h } };
+    });
+  };
+  const onStagePointerUp = () => {
+    if (drawing.current) drawing.current = false;
+    if (cropDrag.current.mode) {
+      cropDrag.current.mode = null;
+      commit(draft);
+    }
+  };
+
+  // Пинч-зум кадра
+  const onTouchStart = (e: React.TouchEvent) => {
+    if (tab === "crop" && e.touches.length === 2) {
+      const [a, b] = [e.touches[0], e.touches[1]];
+      pinch.current = {
+        d: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY),
+        rect: { ...draft.crop },
+      };
+    }
+  };
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (pinch.current && e.touches.length === 2) {
+      e.preventDefault();
+      const [a, b] = [e.touches[0], e.touches[1]];
+      const d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+      const ratio = d / pinch.current.d;
+      const r = pinch.current.rect;
+      const cx = r.x + r.w / 2;
+      const cy = r.y + r.h / 2;
+      const w = clamp(r.w * ratio, MIN, 1);
+      const h = clamp(r.h * ratio, MIN, 1);
+      setDraft((dd) => ({
+        ...dd,
+        aspect: "free",
+        crop: {
+          x: clamp(cx - w / 2, 0, 1 - w),
+          y: clamp(cy - h / 2, 0, 1 - h),
+          w,
+          h,
+        },
       }));
     }
   };
-  const onPointerUp = () => {
-    if (dragCrop.current) {
-      dragCrop.current = false;
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (pinch.current && e.touches.length < 2) {
+      pinch.current = null;
       commit(draft);
     }
-    drawing.current = false;
   };
+
   const clearMarkup = () => {
     const cv = markupRef.current;
     cv?.getContext("2d")?.clearRect(0, 0, cv.width, cv.height);
   };
 
-  // ===== ИИ =====
   const runAI = async (kind: "enhance" | "removebg" | "denoise") => {
     setMore(false);
     setBusy(kind === "removebg" ? "Загрузка ИИ-модели…" : "Обработка…");
     try {
-      // запекаем текущие правки, затем применяем ИИ к результату
       const baked = await renderEdited(workingSrc, {
         adjust: draft.adjust,
         presetCss,
         rotateDeg: draft.rotate,
         flipH: draft.flipH,
         flipV: draft.flipV,
-        crop,
+        crop: renderCrop,
         markup: markupRef.current,
       });
       let out: string;
@@ -206,7 +281,7 @@ export function Editor({
         });
       setWorkingSrc(out);
       clearMarkup();
-      commit(INIT); // правки запечены — начинаем поверх результата
+      commit({ ...INIT });
     } catch {
       setBusy("Не удалось");
       setTimeout(() => setBusy(""), 1200);
@@ -224,7 +299,7 @@ export function Editor({
         rotateDeg: draft.rotate,
         flipH: draft.flipH,
         flipV: draft.flipV,
-        crop,
+        crop: renderCrop,
         markup: markupRef.current,
       });
       onSave(url);
@@ -234,6 +309,7 @@ export function Editor({
   };
 
   const activeTool = TOOLS.find((t) => t.key === tool)!;
+  const cf = draft.crop;
 
   return (
     <div className="editor">
@@ -248,10 +324,7 @@ export function Editor({
           <button className="etool" onClick={redo} disabled={hi >= hist.length - 1}>
             <RedoIcon size={22} />
           </button>
-          <button
-            className={`etool ${markupMode ? "on" : ""}`}
-            onClick={() => setMarkupMode((v) => !v)}
-          >
+          <button className={`etool ${markupMode ? "on" : ""}`} onClick={() => setMarkupMode((v) => !v)}>
             <MarkupIcon size={22} />
           </button>
           <div className="more-wrap">
@@ -278,9 +351,19 @@ export function Editor({
         </button>
       </header>
 
-      <div className="editor-stage" onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerLeave={onPointerUp}>
+      <div
+        className="editor-stage"
+        onPointerDown={onStagePointerDown}
+        onPointerMove={onStagePointerMove}
+        onPointerUp={onStagePointerUp}
+        onPointerLeave={onStagePointerUp}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
         <div
           className="edit-wrap"
+          ref={wrapRef}
           style={{
             transform: `rotate(${draft.rotate}deg) scale(${draft.flipH ? -1 : 1}, ${draft.flipV ? -1 : 1})`,
           }}
@@ -292,35 +375,34 @@ export function Editor({
             draggable={false}
             crossOrigin="anonymous"
             onLoad={(e) =>
-              setNat({
-                w: e.currentTarget.naturalWidth,
-                h: e.currentTarget.naturalHeight,
-              })
+              setNat({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })
             }
           />
           {draft.adjust.vignette > 0 && (
-            <span
-              className="vignette-ov"
-              style={{ opacity: draft.adjust.vignette / 100 }}
-            />
+            <span className="vignette-ov" style={{ opacity: draft.adjust.vignette / 100 }} />
           )}
           <canvas
             ref={markupRef}
             className="markup-layer"
             style={{ pointerEvents: markupMode ? "auto" : "none" }}
-            onPointerDown={onPointerDown}
           />
-          {tab === "crop" && crop && (
+          {tab === "crop" && (
             <div
               className="crop-frame"
               style={{
-                left: `${crop.x * 100}%`,
-                top: `${crop.y * 100}%`,
-                width: `${crop.w * 100}%`,
-                height: `${crop.h * 100}%`,
+                left: `${cf.x * 100}%`,
+                top: `${cf.y * 100}%`,
+                width: `${cf.w * 100}%`,
+                height: `${cf.h * 100}%`,
               }}
-              onPointerDown={onPointerDown}
-            />
+              onPointerDown={(e) => cropPointerDown(e, "move")}
+            >
+              <span className="crop-grid" />
+              <span className="ch tl" onPointerDown={(e) => cropPointerDown(e, "tl")} />
+              <span className="ch tr" onPointerDown={(e) => cropPointerDown(e, "tr")} />
+              <span className="ch bl" onPointerDown={(e) => cropPointerDown(e, "bl")} />
+              <span className="ch br" onPointerDown={(e) => cropPointerDown(e, "br")} />
+            </div>
           )}
         </div>
         {busy && <div className="editor-busy glass">{busy}</div>}
@@ -341,7 +423,6 @@ export function Editor({
         )}
       </div>
 
-      {/* Панель инструментов по вкладке */}
       <div className="editor-panel">
         {tab === "adjust" && (
           <>
@@ -351,13 +432,7 @@ export function Editor({
                 onClick={() =>
                   commit({
                     ...draft,
-                    adjust: {
-                      ...draft.adjust,
-                      exposure: 12,
-                      contrast: 16,
-                      saturation: 14,
-                      vibrance: 18,
-                    },
+                    adjust: { ...draft.adjust, exposure: 12, contrast: 16, saturation: 14, vibrance: 18 },
                   })
                 }
               >
@@ -369,9 +444,7 @@ export function Editor({
               {TOOLS.map((t) => (
                 <button
                   key={t.key}
-                  className={`tool-chip ${tool === t.key ? "on" : ""} ${
-                    draft.adjust[t.key] !== 0 ? "edited" : ""
-                  }`}
+                  className={`tool-chip ${tool === t.key ? "on" : ""} ${draft.adjust[t.key] !== 0 ? "edited" : ""}`}
                   onClick={() => setTool(t.key)}
                 >
                   <span className="tool-ico">{Math.round(draft.adjust[t.key])}</span>
@@ -386,10 +459,7 @@ export function Editor({
                 max={activeTool.max}
                 value={draft.adjust[tool]}
                 onChange={(e) =>
-                  setDraft((d) => ({
-                    ...d,
-                    adjust: { ...d.adjust, [tool]: +e.target.value },
-                  }))
+                  setDraft((d) => ({ ...d, adjust: { ...d.adjust, [tool]: +e.target.value } }))
                 }
                 onPointerUp={() => commit(draft)}
               />
@@ -422,7 +492,7 @@ export function Editor({
                 <button
                   key={a.key}
                   className={`chip ${draft.aspect === a.key ? "on" : ""}`}
-                  onClick={() => commit({ ...draft, aspect: a.key })}
+                  onClick={() => setAspect(a.key)}
                 >
                   {a.label}
                 </button>
@@ -435,18 +505,9 @@ export function Editor({
               <button className="chip" onClick={() => commit({ ...draft, flipH: !draft.flipH })}>
                 <FlipHIcon size={18} /> Отразить
               </button>
-              <label className="crop-size">
-                Масштаб
-                <input
-                  type="range"
-                  min={0.4}
-                  max={1}
-                  step={0.01}
-                  value={draft.scale}
-                  onChange={(e) => setDraft((d) => ({ ...d, scale: +e.target.value }))}
-                  onPointerUp={() => commit(draft)}
-                />
-              </label>
+              <button className="chip" onClick={() => commit({ ...draft, crop: { ...FULL }, aspect: "free" })}>
+                Сброс
+              </button>
             </div>
           </div>
         )}

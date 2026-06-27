@@ -4,7 +4,7 @@ import { PhotoGrid } from "./components/PhotoGrid";
 import { PhotoViewer } from "./components/PhotoViewer";
 import { PermissionScreen } from "./components/PermissionScreen";
 import { Avatar, AvatarMenu, UserProfile } from "./components/AvatarMenu";
-import { SettingsSheet } from "./components/SettingsSheet";
+import { SettingsSheet, Settings, DEFAULT_SETTINGS } from "./components/SettingsSheet";
 import { Collections, OpenCollection } from "./components/Collections";
 import { SearchScreen } from "./components/SearchScreen";
 import { AddToAlbumScreen } from "./components/AddToAlbumScreen";
@@ -56,6 +56,7 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [addAlbumOpen, setAddAlbumOpen] = useState(false);
+  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   // Видимость бара Годы/Месяцы/Все: появляется при прокрутке середины ленты
   const [segVisible, setSegVisible] = useState(false);
   // Подзаголовок медиатеки: «N объектов» вверху, дата при прокрутке
@@ -110,6 +111,13 @@ export default function App() {
   useEffect(() => {
     setLibSubtitle(objectsCount(visiblePhotos.length));
   }, [visiblePhotos.length]);
+
+  // Применение темы из настроек
+  useEffect(() => {
+    const el = document.documentElement;
+    if (settings.theme === "system") delete el.dataset.theme;
+    else el.dataset.theme = settings.theme;
+  }, [settings.theme]);
 
   // Пинч-зум сетки (как в iOS): два пальца меняют число колонок
   useEffect(() => {
@@ -194,6 +202,7 @@ export default function App() {
                     <PhotoGrid
                       photos={visiblePhotos}
                       columns={libCols}
+                      grouped={settings.gridByDays}
                       onOpen={(p) => openPhotoIn(visiblePhotos, p)}
                     />
                   </>
@@ -273,6 +282,7 @@ export default function App() {
           <PhotoViewer
             photos={viewerList}
             index={viewerIndex}
+            showMaps={settings.maps}
             onIndexChange={setViewerIndex}
             onClose={() => setViewerIndex(null)}
             onToggleFavorite={toggleFavorite}
@@ -312,7 +322,13 @@ export default function App() {
             }}
           />
         )}
-        {settingsOpen && <SettingsSheet onClose={() => setSettingsOpen(false)} />}
+        {settingsOpen && (
+          <SettingsSheet
+            settings={settings}
+            onChange={(patch) => setSettings((s) => ({ ...s, ...patch }))}
+            onClose={() => setSettingsOpen(false)}
+          />
+        )}
       </div>
     </div>
   );

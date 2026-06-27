@@ -20,11 +20,13 @@ function Row({ label, value }: { label: string; value?: string }) {
 export function MetadataSheet({
   photo,
   hidden,
+  showMaps = true,
   onToggleHidden,
   onClose,
 }: {
   photo: Photo;
   hidden?: boolean;
+  showMaps?: boolean;
   onToggleHidden?: () => void;
   onClose: () => void;
 }) {
@@ -77,6 +79,7 @@ export function MetadataSheet({
               {typeof loc.altitude === "number" && (
                 <Row label="Высота" value={`${Math.round(loc.altitude)} м`} />
               )}
+              {showMaps && (
               <a
                 className="meta-map"
                 href={`https://maps.apple.com/?ll=${loc.lat},${loc.lng}&q=${encodeURIComponent(
@@ -88,6 +91,7 @@ export function MetadataSheet({
                 <MapPinIcon size={18} />
                 Открыть на карте
               </a>
+              )}
             </>
           )}
 

@@ -1778,3 +1778,202 @@ body {
   font-size: 15px;
   cursor: pointer;
 }
+
+/* ===== Ручное переключение темы (настройки) ===== */
+:root[data-theme="light"] {
+  --bg: #ffffff; --surface: #f2f2f7; --text: #1c1c1e;
+  --text-dim: rgba(60,60,67,0.6); --hairline: rgba(0,0,0,0.08);
+  --glass-bg: rgba(255,255,255,0.72); --glass-stroke: rgba(255,255,255,0.6);
+  --glass-shadow: 0 8px 30px rgba(0,0,0,0.12); --scrim-top: rgba(255,255,255,0.78);
+}
+:root[data-theme="dark"] {
+  --bg: #000000; --surface: #1c1c1e; --text: #f5f5f7;
+  --text-dim: rgba(235,235,245,0.6); --hairline: rgba(255,255,255,0.1);
+  --glass-bg: rgba(30,30,32,0.6); --glass-stroke: rgba(255,255,255,0.12);
+  --glass-shadow: 0 8px 30px rgba(0,0,0,0.5); --scrim-top: rgba(0,0,0,0.55);
+}
+
+/* ===== Детали: сплошной фон по теме, раздельный верхний бар (#1,#6) ===== */
+.viewer {
+  background: var(--bg);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.viewer.fs { background: #000; }
+.viewer.closing { opacity: 0; transform: scale(0.97); }
+.viewer-top {
+  position: absolute;
+  top: calc(8px + var(--safe-top));
+  left: 14px;
+  right: 14px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  border-radius: 0;
+}
+.viewer-back {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+  border: none;
+  cursor: pointer;
+  flex: none;
+}
+.viewer-title {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 14px;
+  border-radius: 18px;
+  line-height: 1.15;
+}
+.viewer-top-spacer { width: 44px; flex: none; }
+
+/* ===== Свёрнутый пилл: центрируем иконку (#9) ===== */
+.bottom-bar.collapsed .tab-pill .tab-item {
+  justify-content: center;
+}
+.bottom-bar.collapsed .tab-pill .tab-item span {
+  max-width: 0;
+  opacity: 0;
+  height: 0;
+  margin: 0;
+}
+
+/* ===== Подтверждение (#4) ===== */
+.confirm-wrap {
+  width: 100%;
+  max-width: 430px;
+  padding: 0 10px calc(12px + var(--safe-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: sheet-up 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.confirm-card { border-radius: 18px; overflow: hidden; text-align: center; }
+.confirm-text {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-bottom: 1px solid var(--hairline);
+}
+.confirm-text strong { font-size: 15px; }
+.confirm-text span { font-size: 13px; color: var(--text-dim); }
+.confirm-action {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  font-size: 18px;
+  font-weight: 600;
+  padding: 15px;
+  cursor: pointer;
+}
+.confirm-action.danger { color: var(--danger); }
+.confirm-cancel {
+  width: 100%;
+  border: none;
+  border-radius: 18px;
+  color: var(--accent);
+  font-size: 18px;
+  font-weight: 700;
+  padding: 15px;
+  cursor: pointer;
+}
+
+/* ===== Переключатели в настройках (#8) ===== */
+.switch {
+  width: 48px;
+  height: 30px;
+  border-radius: 15px;
+  border: none;
+  background: var(--hairline);
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s;
+  flex: none;
+}
+.switch.on { background: #30d158; }
+.switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+.switch.on .switch-knob { transform: translateX(18px); }
+.settings-group.glass-row { background: var(--surface); border-radius: 14px; overflow: hidden; }
+.settings-group.glass-row .settings-row {
+  background: transparent;
+  border-radius: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  width: 100%;
+  font-size: 16px;
+  color: var(--text);
+  border: none;
+  cursor: default;
+}
+.settings-group.glass-row button.settings-row { cursor: pointer; }
+.settings-row.div { border-top: 1px solid var(--hairline); }
+.settings-value { display: flex; align-items: center; gap: 4px; color: var(--text-dim); font-size: 15px; }
+
+/* ===== Редактор: тема (#7) ===== */
+.editor { background: var(--bg); color: var(--text); }
+.editor-top .overlay-link { color: var(--accent); }
+.etool { background: var(--surface); color: var(--text); }
+.etool.on { background: var(--text); color: var(--bg); }
+.tool-chip { color: var(--text-dim); }
+.tool-chip.on { color: var(--text); }
+.tool-ico { background: var(--surface); color: var(--text); }
+.tool-chip.on .tool-ico { background: var(--accent); color: #fff; }
+.editor .chip { background: var(--surface); color: var(--text); }
+.editor .chip.on { background: var(--accent); color: #fff; }
+.filter-chip { color: var(--text-dim); }
+.filter-chip.on { color: var(--text); }
+.editor-tabs { border-top: 1px solid var(--hairline); }
+.editor-tabs .etab { color: var(--text-dim); }
+.editor-tabs .etab.on { color: var(--text); }
+.editor-tabs .save-dot { color: var(--accent); }
+.markup-clear { color: var(--text); }
+.crop-size { color: var(--text-dim); }
+
+/* ===== Кадр: маркеры по углам + сетка (#2) ===== */
+.crop-frame { position: absolute; }
+.crop-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(rgba(255,255,255,0.4) 0 0) 33.33% 0 / 1px 100% no-repeat,
+    linear-gradient(rgba(255,255,255,0.4) 0 0) 66.66% 0 / 1px 100% no-repeat,
+    linear-gradient(rgba(255,255,255,0.4) 0 0) 0 33.33% / 100% 1px no-repeat,
+    linear-gradient(rgba(255,255,255,0.4) 0 0) 0 66.66% / 100% 1px no-repeat;
+}
+.ch {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  z-index: 3;
+  touch-action: none;
+}
+.ch.tl { left: -14px; top: -14px; border-left: 3px solid #fff; border-top: 3px solid #fff; border-top-left-radius: 4px; }
+.ch.tr { right: -14px; top: -14px; border-right: 3px solid #fff; border-top: 3px solid #fff; border-top-right-radius: 4px; }
+.ch.bl { left: -14px; bottom: -14px; border-left: 3px solid #fff; border-bottom: 3px solid #fff; border-bottom-left-radius: 4px; }
+.ch.br { right: -14px; bottom: -14px; border-right: 3px solid #fff; border-bottom: 3px solid #fff; border-bottom-right-radius: 4px; }
