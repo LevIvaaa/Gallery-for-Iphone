@@ -18,7 +18,7 @@ import { deleteManyFromDevice } from "./services/nativeDelete";
 import { sharePhoto } from "./lib/share";
 import { haptic } from "./lib/haptics";
 import { objectsCount, monthYearLabel } from "./lib/format";
-import { ChevronLeftIcon, LockIcon } from "./icons";
+import { ArrowLeftIcon, LockIcon } from "./icons";
 import type { Photo, UserAlbum } from "./types";
 
 const user: UserProfile = { name: "Lev Iva", subtitle: "Apple ID · iCloud+" };
@@ -337,9 +337,8 @@ export default function App() {
                       </div>
                     ) : (
                       <div className="top-head sticky album-sticky scrim">
-                        <button className="back-link" onClick={() => setAlbum(null)}>
-                          <ChevronLeftIcon size={22} />
-                          <span>Назад</span>
+                        <button className="head-back" onClick={() => setAlbum(null)} aria-label="Назад">
+                          <ArrowLeftIcon size={22} />
                         </button>
                         <h1 className="big-title small">{album.title}</h1>
                       </div>
@@ -389,6 +388,7 @@ export default function App() {
               <BottomBar
                 active={tab}
                 collapsed={collapseTabs}
+                tabsHidden={!!album}
                 filterActive={filterKey !== "all"}
                 onChange={(t) => {
                   setTab(t);

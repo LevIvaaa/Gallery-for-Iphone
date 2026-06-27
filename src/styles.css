@@ -2286,3 +2286,30 @@ body {
   border-radius: 50%;
   overflow: hidden;
 }
+
+/* ===== Шапка альбома: круглая стрелка вместо синей «Назад» ===== */
+.album-sticky {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+.head-back {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(120, 120, 128, 0.32);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex: none;
+}
+
+/* ===== Нижний бар: только фильтр (в подразделах коллекций) ===== */
+.bottom-bar.filter-only {
+  justify-content: flex-end;
+}
