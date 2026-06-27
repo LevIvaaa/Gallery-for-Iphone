@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import type { Photo, UserAlbum, MediaKind } from "../types";
 import {
   HeartIcon,
@@ -9,7 +9,6 @@ import {
   LockIcon,
   TrashIcon,
   PlusIcon,
-  GridIcon,
   ChevronRightIcon,
   ChevronDownIcon,
   PlayIcon,
@@ -29,24 +28,20 @@ export function Collections({
   photos,
   albums,
   columns,
-  onColumns,
+  collapsed,
+  onToggleCollapse,
   onOpen,
   onCreateAlbum,
 }: {
   photos: Photo[];
   albums: UserAlbum[];
   columns: number;
-  onColumns: (n: number) => void;
+  collapsed: Set<string>;
+  onToggleCollapse: (k: string) => void;
   onOpen: (c: OpenCollection) => void;
   onCreateAlbum: () => void;
 }) {
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
-  const toggle = (k: string) =>
-    setCollapsed((prev) => {
-      const next = new Set(prev);
-      next.has(k) ? next.delete(k) : next.add(k);
-      return next;
-    });
+  const toggle = onToggleCollapse;
 
   const byId = useMemo(() => new Map(photos.map((p) => [p.id, p])), [photos]);
   const visible = photos.filter((p) => !p.hidden && !p.deleted);
@@ -115,12 +110,10 @@ export function Collections({
   const Section = ({
     title,
     sectionKey,
-    extra,
     children,
   }: {
     title: string;
     sectionKey: string;
-    extra?: React.ReactNode;
     children: React.ReactNode;
   }) => {
     const isOpen = !collapsed.has(sectionKey);
@@ -131,19 +124,13 @@ export function Collections({
             <span>{title}</span>
             <ChevronRightIcon size={20} />
           </div>
-          <div className="col-head-actions">
-            {extra}
-            <button
-              className="collapse-btn"
-              onClick={() => toggle(sectionKey)}
-              aria-label="Свернуть"
-            >
-              <ChevronDownIcon
-                size={18}
-                className={isOpen ? "" : "rot"}
-              />
-            </button>
-          </div>
+          <button
+            className="collapse-btn"
+            onClick={() => toggle(sectionKey)}
+            aria-label="Свернуть"
+          >
+            <ChevronDownIcon size={18} className={isOpen ? "" : "rot"} />
+          </button>
         </div>
         {isOpen && children}
       </section>
@@ -191,19 +178,7 @@ export function Collections({
       )}
 
       {/* Альбомы — сетка + создание + переключатель размера */}
-      <Section
-        title="Альбомы"
-        sectionKey="albums"
-        extra={
-          <button
-            className="collapse-btn"
-            onClick={() => onColumns(columns >= 4 ? 2 : columns + 1)}
-            aria-label="Размер сетки"
-          >
-            <GridIcon size={17} />
-          </button>
-        }
-      >
+      <Section title="Альбомы" sectionKey="albums">
         <div className="albums" style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}>
           <button className="album-card add-album" onClick={onCreateAlbum}>
             <div className="album-cover add">

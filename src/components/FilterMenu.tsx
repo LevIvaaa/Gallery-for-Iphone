@@ -38,32 +38,21 @@ export function FilterMenu({
   onClose: () => void;
 }) {
   return (
-    <div className="sheet-backdrop" onClick={onClose}>
-      <div className="filter-sheet glass" onClick={(e) => e.stopPropagation()}>
-        <div className="sheet-grabber" />
-        <div className="sheet-header">
-          <h3>Фильтр</h3>
-        </div>
-        <div className="settings-group glass-row">
-          {options.map((o, i) => (
-            <button
-              key={o.key}
-              className={`settings-row ${i ? "div" : ""}`}
-              onClick={() => {
-                onSelect(o.key);
-                onClose();
-              }}
-            >
-              <span className="list-ico">
-                <o.Icon size={20} />
-              </span>
-              <span style={{ flex: 1, textAlign: "left", marginLeft: 12 }}>
-                {o.label}
-              </span>
-              {active === o.key && <CheckIcon size={18} />}
-            </button>
-          ))}
-        </div>
+    <div className="popover-backdrop" onClick={onClose}>
+      <div className="popover glass" onClick={(e) => e.stopPropagation()}>
+        {options.map((o) => (
+          <button
+            key={o.key}
+            className={`popover-row ${active === o.key ? "on" : ""}`}
+            onClick={() => {
+              onSelect(o.key);
+              onClose();
+            }}
+          >
+            <span className="popover-label">{o.label}</span>
+            {active === o.key ? <CheckIcon size={18} /> : <o.Icon size={18} />}
+          </button>
+        ))}
       </div>
     </div>
   );

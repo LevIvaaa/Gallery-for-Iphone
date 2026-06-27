@@ -13,31 +13,34 @@ export function SelectionBar({
   onRestore: () => void;
   onDelete: () => void;
 }) {
+  const left =
+    mode === "trash" ? (
+      <button className="sel-fab glass" onClick={onRestore} disabled={!count} aria-label="Восстановить">
+        <UndoIcon size={22} />
+      </button>
+    ) : mode === "hidden" ? (
+      <button className="sel-fab glass" onClick={onRestore} disabled={!count} aria-label="Убрать из скрытых">
+        <EyeIcon size={22} />
+      </button>
+    ) : (
+      <button className="sel-fab glass" onClick={onShare} disabled={!count} aria-label="Поделиться">
+        <ShareIcon size={21} />
+      </button>
+    );
+
   return (
-    <div className="selection-bar glass">
-      {mode === "trash" ? (
-        <button className="sel-btn" onClick={onRestore} disabled={count === 0} aria-label="Восстановить">
-          <UndoIcon size={24} />
-        </button>
-      ) : mode === "hidden" ? (
-        <button className="sel-btn" onClick={onRestore} disabled={count === 0} aria-label="Убрать из скрытых">
-          <EyeIcon size={24} />
-        </button>
-      ) : (
-        <button className="sel-btn" onClick={onShare} disabled={count === 0} aria-label="Поделиться">
-          <ShareIcon size={24} />
-        </button>
-      )}
-      <span className="sel-count">
+    <div className="selection-bar">
+      {left}
+      <div className="sel-count-pill glass">
         {count === 0 ? "Выберите фото" : `Выбрано: ${count}`}
-      </span>
+      </div>
       <button
-        className="sel-btn danger"
+        className="sel-fab glass danger"
         onClick={onDelete}
-        disabled={count === 0}
+        disabled={!count}
         aria-label="Удалить"
       >
-        <TrashIcon size={24} />
+        <TrashIcon size={21} />
       </button>
     </div>
   );

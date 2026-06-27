@@ -2338,3 +2338,121 @@ body {
   cursor: pointer;
   flex: none;
 }
+
+/* ===== Выпадающее меню-поповер (Liquid Glass) ===== */
+.popover-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  animation: fade-in 0.15s ease;
+}
+.popover {
+  position: absolute;
+  top: calc(var(--safe-top) + 68px);
+  right: 14px;
+  min-width: 230px;
+  max-width: 82%;
+  border-radius: 18px;
+  padding: 6px;
+  transform-origin: top right;
+  animation: popover-in 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.15);
+}
+@keyframes popover-in {
+  from { opacity: 0; transform: scale(0.82); }
+  to { opacity: 1; transform: scale(1); }
+}
+.popover-title {
+  font-size: 12px;
+  color: var(--text-dim);
+  padding: 8px 14px 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.popover-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 16px;
+  padding: 12px 14px;
+  border-radius: 11px;
+  cursor: pointer;
+}
+.popover-row:active { background: var(--surface); }
+.popover-row.on { color: var(--accent); }
+.popover-label { flex: 1; text-align: left; }
+.popover-sep { height: 1px; background: var(--hairline); margin: 4px 6px; }
+
+/* ===== Круглая кнопка в шапке (фильтр/опции) ===== */
+.head-circle {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(120, 120, 128, 0.3);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex: none;
+}
+.head-circle.active { background: var(--accent); }
+
+/* ===== Подзаголовок ровно под заголовком (#6) ===== */
+.head-titles {
+  align-items: flex-start;
+}
+.head-sub {
+  margin: 1px 0 0;
+  padding: 0;
+  text-align: left;
+}
+
+/* ===== Раздельная панель выбора (Liquid Glass) ===== */
+.selection-bar {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: calc(14px + var(--safe-bottom));
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0;
+  height: auto;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  animation: sheet-up 0.25s ease;
+}
+.sel-fab {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  border: none;
+  cursor: pointer;
+  flex: none;
+}
+.sel-fab.danger { color: var(--danger); }
+.sel-fab:disabled { opacity: 0.4; }
+.sel-count-pill {
+  padding: 14px 22px;
+  border-radius: 26px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}

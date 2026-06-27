@@ -10,6 +10,7 @@ import { SettingsSheet, Settings, DEFAULT_SETTINGS } from "./components/Settings
 import { Collections, OpenCollection } from "./components/Collections";
 import { AddToAlbumScreen } from "./components/AddToAlbumScreen";
 import { FilterMenu, FilterKey } from "./components/FilterMenu";
+import { CollectionsMenu } from "./components/CollectionsMenu";
 import { ContextMenu } from "./components/ContextMenu";
 import { SelectionBar } from "./components/SelectionBar";
 import { ConfirmSheet } from "./components/ConfirmSheet";
@@ -18,7 +19,7 @@ import { deleteManyFromDevice } from "./services/nativeDelete";
 import { sharePhoto } from "./lib/share";
 import { haptic } from "./lib/haptics";
 import { objectsCount, monthYearLabel } from "./lib/format";
-import { LockIcon, CheckIcon } from "./icons";
+import { LockIcon, CheckIcon, FilterIcon, DotsIcon } from "./icons";
 import type { Photo, UserAlbum } from "./types";
 
 const user: UserProfile = { name: "Lev Iva", subtitle: "Apple ID · iCloud+" };
@@ -88,6 +89,9 @@ export default function App() {
   const [libSubtitle, setLibSubtitle] = useState("");
   const [filterKey, setFilterKey] = useState<FilterKey>("all");
   const [filterOpen, setFilterOpen] = useState(false);
+  const [colMenuOpen, setColMenuOpen] = useState(false);
+  const [selectMenuOpen, setSelectMenuOpen] = useState(false);
+  const [colCollapsed, setColCollapsed] = useState<Set<string>>(new Set());
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [contextPhoto, setContextPhoto] = useState<Photo | null>(null);
@@ -293,6 +297,20 @@ export default function App() {
     setAddAlbumOpen(false);
   };
 
+  const SECTION_KEYS = ["memories", "pinned", "albums", "trips", "types", "other"];
+  const toggleColCollapse = (k: string) =>
+    setColCollapsed((prev) => {
+      const n = new Set(prev);
+      n.has(k) ? n.delete(k) : n.add(k);
+      return n;
+    });
+
+  const hideSelected = () => {
+    [...selected].forEach(toggleHidden);
+    setSelectMenuOpen(false);
+    exitSelection();
+  };
+
   // ===== Выбор фото =====
   const toggleSelect = (p: Photo) =>
     setSelected((prev) => {
@@ -357,9 +375,19 @@ export default function App() {
                       subtitle={libSubtitle}
                       user={profile}
                       onAvatar={() => setAvatarOpen(true)}
+                      action={
+                        <button
+                          className={`head-circle ${filterKey !== "all" ? "active" : ""}`}
+                          onClick={() => setFilterOpen(true)}
+                          aria-label="Фильтр"
+                        >
+                          <FilterIcon size={20} />
+                        </button>
+                      }
                       selecting={selecting}
                       selectedCount={selected.size}
                       onDone={exitSelection}
+                      onSelectMenu={() => setSelectMenuOpen(true)}
                     />
                     <PhotoGrid
                       photos={libraryPhotos}
@@ -380,12 +408,22 @@ export default function App() {
                       title="Коллекции"
                       user={profile}
                       onAvatar={() => setAvatarOpen(true)}
+                      action={
+                        <button
+                          className="head-circle"
+                          onClick={() => setColMenuOpen(true)}
+                          aria-label="Опции"
+                        >
+                          <DotsIcon size={20} />
+                        </button>
+                      }
                     />
                     <Collections
                       photos={photos}
                       albums={albums}
                       columns={colCols}
-                      onColumns={setColCols}
+                      collapsed={colCollapsed}
+                      onToggleCollapse={toggleColCollapse}
                       onOpen={(c: OpenCollection) =>
                         setAlbum({
                           title: c.title,
@@ -466,19 +504,16 @@ export default function App() {
                   setPendingDelete({ ids: [...selected], hard: !!album?.trash })
                 }
               />
-            ) : (
+            ) : !album ? (
               <BottomBar
                 active={tab}
                 collapsed={collapseTabs}
-                tabsHidden={!!album}
-                filterActive={filterKey !== "all"}
                 onChange={(t) => {
                   setTab(t);
                   setAlbum(null);
                 }}
-                onFilter={() => setFilterOpen(true)}
               />
-            )}
+            ) : null}
           </>
         )}
 
@@ -499,6 +534,27 @@ export default function App() {
 
         {filterOpen && (
           <FilterMenu active={filterKey} onSelect={setFilterKey} onClose={() => setFilterOpen(false)} />
+        )}
+
+        {colMenuOpen && (
+          <CollectionsMenu
+            columns={colCols}
+            onColumns={setColCols}
+            onCollapseAll={() => setColCollapsed(new Set(SECTION_KEYS))}
+            onExpandAll={() => setColCollapsed(new Set())}
+            onClose={() => setColMenuOpen(false)}
+          />
+        )}
+
+        {selectMenuOpen && (
+          <div className="popover-backdrop" onClick={() => setSelectMenuOpen(false)}>
+            <div className="popover glass" onClick={(e) => e.stopPropagation()}>
+              <button className="popover-row" onClick={hideSelected}>
+                <span className="popover-label">Скрыть</span>
+                <LockIcon size={18} />
+              </button>
+            </div>
+          </div>
         )}
 
         {contextPhoto && (
@@ -616,17 +672,21 @@ function Header({
   subtitle,
   user,
   onAvatar,
+  action,
   selecting,
   selectedCount = 0,
   onDone,
+  onSelectMenu,
 }: {
   title: string;
   subtitle?: string;
   user: UserProfile;
   onAvatar: () => void;
+  action?: React.ReactNode;
   selecting?: boolean;
   selectedCount?: number;
   onDone?: () => void;
+  onSelectMenu?: () => void;
 }) {
   if (selecting) {
     return (
@@ -636,9 +696,16 @@ function Header({
             {selectedCount ? `Выбрано: ${selectedCount}` : "Выберите фото"}
           </h1>
         </div>
-        <button className="done-circle" onClick={onDone} aria-label="Готово">
-          <CheckIcon size={20} />
-        </button>
+        <div className="head-acts">
+          {onSelectMenu && (
+            <button className="head-circle" onClick={onSelectMenu} aria-label="Ещё">
+              <DotsIcon size={20} />
+            </button>
+          )}
+          <button className="done-circle" onClick={onDone} aria-label="Готово">
+            <CheckIcon size={20} />
+          </button>
+        </div>
       </div>
     );
   }
@@ -648,7 +715,10 @@ function Header({
         <h1 className="big-title">{title}</h1>
         {subtitle && <p className="head-sub">{subtitle}</p>}
       </div>
-      <Avatar user={user} size={34} onClick={onAvatar} />
+      <div className="head-acts">
+        {action}
+        <Avatar user={user} size={34} onClick={onAvatar} />
+      </div>
     </div>
   );
 }
