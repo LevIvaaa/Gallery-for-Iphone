@@ -18,7 +18,7 @@ import { deleteManyFromDevice } from "./services/nativeDelete";
 import { sharePhoto } from "./lib/share";
 import { haptic } from "./lib/haptics";
 import { objectsCount, monthYearLabel } from "./lib/format";
-import { LockIcon } from "./icons";
+import { LockIcon, CheckIcon } from "./icons";
 import type { Photo, UserAlbum } from "./types";
 
 const user: UserProfile = { name: "Lev Iva", subtitle: "Apple ID · iCloud+" };
@@ -395,8 +395,8 @@ export default function App() {
                               Удалить всё
                             </button>
                           )}
-                          <button className="done-btn" onClick={exitSelection}>
-                            Готово
+                          <button className="done-circle" onClick={exitSelection} aria-label="Готово">
+                            <CheckIcon size={20} />
                           </button>
                         </div>
                       </div>
@@ -621,8 +621,8 @@ function Header({
             {selectedCount ? `Выбрано: ${selectedCount}` : "Выберите фото"}
           </h1>
         </div>
-        <button className="done-btn" onClick={onDone}>
-          Готово
+        <button className="done-circle" onClick={onDone} aria-label="Готово">
+          <CheckIcon size={20} />
         </button>
       </div>
     );

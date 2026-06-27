@@ -2323,3 +2323,18 @@ body {
 .done-btn.danger {
   color: var(--danger);
 }
+
+/* ===== Круглая кнопка «Готово» (галочка) в режиме выбора ===== */
+.done-circle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex: none;
+}
