@@ -9,20 +9,24 @@ const tabs: { key: Tab; label: string; Icon: typeof PhotoStackIcon }[] = [
 
 export function BottomBar({
   active,
+  collapsed,
   onChange,
   onSearch,
 }: {
   active: Tab;
+  collapsed?: boolean;
   onChange: (t: Tab) => void;
   onSearch: () => void;
 }) {
   return (
-    <div className="bottom-bar">
+    <div className={`bottom-bar ${collapsed ? "collapsed" : ""}`}>
       <nav className="tab-pill glass">
         {tabs.map(({ key, label, Icon }) => (
           <button
             key={key}
-            className={`tab-item ${active === key ? "active" : ""}`}
+            className={`tab-item ${active === key ? "active" : ""} ${
+              collapsed && key === "collections" ? "tab-hidden" : ""
+            }`}
             onClick={() => onChange(key)}
           >
             <Icon size={20} />

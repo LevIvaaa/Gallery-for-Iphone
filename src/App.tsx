@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { BottomBar, Tab } from "./components/BottomBar";
 import { PhotoGrid } from "./components/PhotoGrid";
 import { PhotoViewer } from "./components/PhotoViewer";
@@ -30,6 +30,9 @@ interface OpenAlbum {
   hint?: string;
 }
 
+const clamp = (n: number, min: number, max: number) =>
+  Math.min(Math.max(n, min), max);
+
 export default function App() {
   const {
     permission,
@@ -44,7 +47,7 @@ export default function App() {
   } = usePhotoLibrary();
 
   const [tab, setTab] = useState<Tab>("library");
-  const [seg, setSeg] = useState("all");
+  const [libCols, setLibCols] = useState(3);
   const [colCols, setColCols] = useState(2);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const [album, setAlbum] = useState<OpenAlbum | null>(null);
@@ -53,11 +56,17 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [addAlbumOpen, setAddAlbumOpen] = useState(false);
+  // Видимость бара Годы/Месяцы/Все: появляется при прокрутке середины ленты
+  const [segVisible, setSegVisible] = useState(false);
 
   const contentRef = useRef<HTMLElement>(null);
-  const columns = segments.find((s) => s.key === seg)?.cols ?? 3;
-  // Скрытые фото не показываем в медиатеке/поиске (видны только в «Скрытые»)
-  const visiblePhotos = photos.filter((p) => !p.hidden);
+  const libColsRef = useRef(libCols);
+  libColsRef.current = libCols;
+
+  const visiblePhotos = useMemo(
+    () => photos.filter((p) => !p.hidden),
+    [photos]
+  );
   const viewerList = album ? album.photos : visiblePhotos;
 
   useEffect(() => {
@@ -66,6 +75,58 @@ export default function App() {
     else if (viewerIndex > viewerList.length - 1)
       setViewerIndex(viewerList.length - 1);
   }, [viewerList, viewerIndex]);
+
+  // Скролл-логика: бар Годы/Месяцы/Все виден в середине ленты,
+  // прячется наверху (только зашёл) и в самом низу (#бар).
+  const handleScroll = () => {
+    const el = contentRef.current;
+    if (!el || tab !== "library" || album) return;
+    const { scrollTop, scrollHeight, clientHeight } = el;
+    const atTop = scrollTop < 12;
+    const atBottom = scrollTop + clientHeight >= scrollHeight - 12;
+    setSegVisible(!atTop && !atBottom);
+  };
+
+  useEffect(() => {
+    if (tab !== "library" || album) setSegVisible(false);
+  }, [tab, album]);
+
+  // Пинч-зум сетки (как в iOS): два пальца меняют число колонок
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    let startDist = 0;
+    let startCols = libColsRef.current;
+    const dist = (t: TouchList) =>
+      Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+
+    const onStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        startDist = dist(e.touches);
+        startCols = libColsRef.current;
+      }
+    };
+    const onMove = (e: TouchEvent) => {
+      if (e.touches.length === 2 && startDist) {
+        e.preventDefault();
+        const ratio = dist(e.touches) / startDist;
+        // развести пальцы (ratio>1) → меньше колонок (крупнее), свести → больше
+        const delta = Math.round((ratio - 1) * 4);
+        setLibCols(clamp(startCols - delta, 2, 6));
+      }
+    };
+    const onEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) startDist = 0;
+    };
+    el.addEventListener("touchstart", onStart, { passive: false });
+    el.addEventListener("touchmove", onMove, { passive: false });
+    el.addEventListener("touchend", onEnd);
+    return () => {
+      el.removeEventListener("touchstart", onStart);
+      el.removeEventListener("touchmove", onMove);
+      el.removeEventListener("touchend", onEnd);
+    };
+  }, []);
 
   const openPhotoIn = (list: Photo[], p: Photo, keepAlbum?: boolean) => {
     if (!keepAlbum) setAlbum(null);
@@ -86,6 +147,8 @@ export default function App() {
   };
 
   const needPermission = permission === "prompt" || permission === "denied";
+  // Вкладка «Коллекции» прячется влево, когда показан бар Годы/Месяцы/Все
+  const collapseTabs = tab === "library" && !album && segVisible;
 
   return (
     <div className="phone">
@@ -98,63 +161,65 @@ export default function App() {
           />
         ) : (
           <>
-            <main className="content" ref={contentRef}>
-              {tab === "library" && (
-                <>
-                  <StickyHeader
-                    title="Медиатека"
-                    user={user}
-                    onAvatar={() => setAvatarOpen(true)}
-                  />
-                  <PhotoGrid
-                    photos={visiblePhotos}
-                    columns={columns}
-                    onOpen={(p) => openPhotoIn(visiblePhotos, p)}
-                  />
-                </>
-              )}
-
-              {tab === "collections" && !album && (
-                <>
-                  <StickyHeader
-                    title="Коллекции"
-                    user={user}
-                    onAvatar={() => setAvatarOpen(true)}
-                  />
-                  <Collections
-                    photos={photos}
-                    albums={albums}
-                    columns={colCols}
-                    onColumns={setColCols}
-                    onOpen={openCollection}
-                    onCreateAlbum={() => setAddAlbumOpen(true)}
-                  />
-                </>
-              )}
-
-              {album && (
-                <>
-                  <div className="top-head sticky glass album-sticky">
-                    <button className="back-link" onClick={() => setAlbum(null)}>
-                      <ChevronLeftIcon size={22} />
-                      <span>Назад</span>
-                    </button>
-                    <h1 className="big-title small">{album.title}</h1>
-                  </div>
-                  {album.photos.length ? (
-                    <PhotoGrid
-                      photos={album.photos}
-                      columns={colCols + 1}
-                      onOpen={(p) => openPhotoIn(album.photos, p, true)}
+            <main className="content" ref={contentRef} onScroll={handleScroll}>
+              <div className="view" key={`${tab}${album ? "-album" : ""}`}>
+                {tab === "library" && !album && (
+                  <>
+                    <Header
+                      title="Медиатека"
+                      user={user}
+                      onAvatar={() => setAvatarOpen(true)}
                     />
-                  ) : (
-                    <div className="empty-album">
-                      <LockIcon size={42} />
-                      <p>{album.hint || "Здесь пока пусто."}</p>
+                    <PhotoGrid
+                      photos={visiblePhotos}
+                      columns={libCols}
+                      onOpen={(p) => openPhotoIn(visiblePhotos, p)}
+                    />
+                  </>
+                )}
+
+                {tab === "collections" && !album && (
+                  <>
+                    <Header
+                      title="Коллекции"
+                      user={user}
+                      onAvatar={() => setAvatarOpen(true)}
+                    />
+                    <Collections
+                      photos={photos}
+                      albums={albums}
+                      columns={colCols}
+                      onColumns={setColCols}
+                      onOpen={openCollection}
+                      onCreateAlbum={() => setAddAlbumOpen(true)}
+                    />
+                  </>
+                )}
+
+                {album && (
+                  <>
+                    <div className="top-head sticky album-sticky scrim">
+                      <button className="back-link" onClick={() => setAlbum(null)}>
+                        <ChevronLeftIcon size={22} />
+                        <span>Назад</span>
+                      </button>
+                      <h1 className="big-title small">{album.title}</h1>
                     </div>
-                  )}
-                </>
-              )}
+                    {album.photos.length ? (
+                      <PhotoGrid
+                        photos={album.photos}
+                        columns={colCols + 1}
+                        onOpen={(p) => openPhotoIn(album.photos, p, true)}
+                      />
+                    ) : (
+                      <div className="empty-album">
+                        <LockIcon size={42} />
+                        <p>{album.hint || "Здесь пока пусто."}</p>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             </main>
 
             {tab === "library" && !album && (
@@ -162,12 +227,12 @@ export default function App() {
             )}
 
             {tab === "library" && !album && (
-              <div className="segmented glass">
+              <div className={`segmented glass ${segVisible ? "show" : ""}`}>
                 {segments.map((s) => (
                   <button
                     key={s.key}
-                    className={`seg ${seg === s.key ? "active" : ""}`}
-                    onClick={() => setSeg(s.key)}
+                    className={`seg ${libCols === s.cols ? "active" : ""}`}
+                    onClick={() => setLibCols(s.cols)}
                   >
                     {s.label}
                   </button>
@@ -177,6 +242,7 @@ export default function App() {
 
             <BottomBar
               active={tab}
+              collapsed={collapseTabs}
               onChange={(t) => {
                 setTab(t);
                 setAlbum(null);
@@ -213,7 +279,7 @@ export default function App() {
 
         {addAlbumOpen && (
           <AddToAlbumScreen
-            photos={photos}
+            photos={visiblePhotos}
             onCancel={() => setAddAlbumOpen(false)}
             onCreate={createAlbum}
           />
@@ -235,7 +301,7 @@ export default function App() {
   );
 }
 
-function StickyHeader({
+function Header({
   title,
   user,
   onAvatar,
@@ -245,7 +311,7 @@ function StickyHeader({
   onAvatar: () => void;
 }) {
   return (
-    <div className="top-head sticky glass">
+    <div className="top-head sticky scrim">
       <h1 className="big-title">{title}</h1>
       <Avatar user={user} size={34} onClick={onAvatar} />
     </div>
